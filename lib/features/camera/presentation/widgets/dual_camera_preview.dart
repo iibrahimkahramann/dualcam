@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class DualCameraPreview extends StatelessWidget {
   const DualCameraPreview({super.key});
@@ -13,10 +14,10 @@ class DualCameraPreview extends StatelessWidget {
         creationParamsCodec: StandardMessageCodec(),
       );
     } else {
-      return const Center(
+      return Center(
         child: Text(
-          'Camera preview not supported on this platform.',
-          style: TextStyle(color: Colors.white),
+          'camera_not_supported'.tr(),
+          style: const TextStyle(color: Colors.white),
         ),
       );
     }

@@ -1,0 +1,51 @@
+{
+  "9:16": "9:16 (Vertical)",
+  "16:9": "16:9 (Horizontal)",
+  "recording": "Recording...",
+  "saved_files": "Saved Files:",
+  "video_format": "Video Format",
+  "select_resolution_fps": "Select resolution and FPS",
+  "cancel": "Cancel",
+
+  "photo_saved": "Photo saved to gallery.",
+  "video_saved": "Video saved to gallery.",
+
+  "mode_video": "VIDEO",
+  "mode_photo": "PHOTO",
+
+  "aspect_vertical": "9:16 (Vertical)",
+  "aspect_horizontal": "16:9 (Horizontal)",
+
+  "settings_title": "Settings",
+  "settings_upgrade_title": "Upgrade to PRO",
+  "settings_upgrade_subtitle": "Unlock all premium features",
+  "settings_premium_active": "Premium Active",
+  "settings_premium_thanks": "Thanks for your support!",
+  "settings_about": "ABOUT",
+  "settings_rate_us": "Rate Us",
+  "settings_terms": "Terms of Use",
+  "settings_privacy": "Privacy Policy",
+
+  "onboarding_skip": "Skip",
+  "onboarding_continue": "Continue",
+  "onboarding_get_started": "Get Started",
+
+  "onboarding_1_title": "One Take,\nTwo Videos",
+  "onboarding_1_subtitle": "Record portrait and landscape\nsimultaneously from a single take.",
+
+  "onboarding_2_title": "Instant Content\nfor Every Platform",
+  "onboarding_2_subtitle": "Vertical for short-form.\nHorizontal for long-form.\nBoth ready, no editing.",
+  "onboarding_2_tiktok": "TikTok\n& Reels",
+  "onboarding_2_youtube": "YouTube",
+
+  "onboarding_3_title": "Pro Camera\nControls",
+  "onboarding_3_subtitle": "4K recording, adjustable FPS,\nflash, HDR, timer — everything\nyou need in one app.",
+  "feature_flash": "Flash",
+  "feature_focus": "Focus",
+  "feature_exposure": "Exposure",
+  "feature_timer": "Timer",
+  "feature_grid": "Grid",
+  "feature_zoom": "Zoom",
+
+  "camera_not_supported": "Camera preview not supported on this platform."
+}

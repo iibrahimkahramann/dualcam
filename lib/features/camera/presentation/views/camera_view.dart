@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'dart:ui' show ImageFilter;
 import '../providers/camera_provider.dart';
 import '../widgets/dual_camera_preview.dart';
@@ -98,9 +99,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
       if (nextFiles != null && nextFiles != prevFiles && nextFiles.isNotEmpty) {
         final isPhoto = next.value?.isPhotoMode ?? false;
         _triggerSuccessBanner(
-          isPhoto
-              ? "Fotoğraf galeriye kaydedildi."
-              : "Video galeriye kaydedildi.",
+          isPhoto ? "photo_saved".tr() : "video_saved".tr(),
         );
       }
     });
@@ -115,6 +114,16 @@ class _CameraViewState extends ConsumerState<CameraView> {
 
     final size = MediaQuery.of(context).size;
     final isTablet = size.width > 600;
+    final isCompact = size.width < 380;
+
+    // Responsive metrics for the glass top bar
+    final topBarIconSize = isTablet ? 26.0 : (isCompact ? 22.0 : 60.0);
+    final topBarIconGap = isTablet ? 18.0 : (isCompact ? 8.0 : 12.0);
+    final topBarLargeGap = isTablet ? 22.0 : (isCompact ? 10.0 : 19.0);
+    final topBarLabelFont = isTablet ? 18.0 : (isCompact ? 13.0 : 20.0);
+    final topBarResFont = isTablet ? 16.0 : (isCompact ? 12.0 : 28.0);
+    final topBarHPadding = isTablet ? 1.0 : (isCompact ? 10.0 : 12.0);
+    final topBarOuterPad = isTablet ? 16.0 : (isCompact ? 10.0 : 12.0);
 
     final pipBaseSize = size.width * (isTablet ? 0.4 : 0.48);
     final _ = isTablet ? size.height * 0.12 : size.height * 0.16;
@@ -202,14 +211,16 @@ class _CameraViewState extends ConsumerState<CameraView> {
               ),
             ),
           // Screen Flash (Apple-style white border for front camera)
-          if (ref.watch(isFrontCameraProvider) && ref.watch(isFlashEnabledProvider))
+          if (ref.watch(isFrontCameraProvider) &&
+              ref.watch(isFlashEnabledProvider))
             Positioned.fill(
               child: IgnorePointer(
                 child: Container(
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: const Color(0xFFFFF9E6), // Warm white illumination
-                      width: 50.0, // Thick border mimicking Apple's Retina Flash
+                      width:
+                          50.0, // Thick border mimicking Apple's Retina Flash
                     ),
                   ),
                 ),
@@ -223,23 +234,35 @@ class _CameraViewState extends ConsumerState<CameraView> {
               children: [
                 // Glassmorphism Top Bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: topBarOuterPad,
                     vertical: 8.0,
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(25),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                       child: Container(
                         height: 50,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: topBarHPadding,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.4),
-                          borderRadius: BorderRadius.circular(30),
+                          color: Colors.white.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(25),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.15),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             // 9:16 indicator or Recording Indicator
                             isRecording
@@ -275,237 +298,270 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                       ),
                                     ],
                                   )
-                                : Text(
-                                    isPipSwapped
-                                        ? '16:9 (Yatay)'
-                                        : '9:16 (Dikey)',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: isTablet ? 18 : 15,
-                                      fontWeight: FontWeight.bold,
+                                : Flexible(
+                                    child: Text(
+                                      isPipSwapped
+                                          ? 'aspect_horizontal'.tr()
+                                          : 'aspect_vertical'.tr(),
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: topBarLabelFont,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
 
                             // Settings Items & Resolution
+                            if (!isRecording) const SizedBox(width: 10),
                             if (!isRecording)
-                              Row(
-                                children: [
-                                  // Flash/Torch Toggle
-                                  GestureDetector(
-                                    onTap: () => ref
-                                        .read(isFlashEnabledProvider.notifier)
-                                        .toggle(),
-                                    child: Icon(
-                                      ref.watch(isFlashEnabledProvider)
-                                          ? CupertinoIcons.bolt_fill
-                                          : CupertinoIcons.bolt_slash,
-                                      color: ref.watch(isFlashEnabledProvider)
-                                          ? Colors.yellow
-                                          : Colors.white,
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-
-                                  // Exposure (EV) Toggle
-                                  GestureDetector(
-                                    onTap: () => ref
-                                        .read(
-                                          showExposureSliderProvider.notifier,
-                                        )
-                                        .toggle(),
-                                    child: Icon(
-                                      ref.watch(showExposureSliderProvider)
-                                          ? CupertinoIcons.slider_horizontal_3
-                                          : CupertinoIcons.slider_horizontal_3,
-                                      color:
-                                          ref.watch(showExposureSliderProvider)
-                                          ? Colors.yellow
-                                          : Colors.white,
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-
-                                  // HDR Toggle
-                                  GestureDetector(
-                                    onTap: () => ref
-                                        .read(hdrEnabledProvider.notifier)
-                                        .toggle(),
-                                    child: Icon(
-                                      ref.watch(hdrEnabledProvider)
-                                          ? CupertinoIcons.sun_max_fill
-                                          : CupertinoIcons.sun_max,
-                                      color: ref.watch(hdrEnabledProvider)
-                                          ? Colors.yellow
-                                          : Colors.white,
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-
-                                  // Grid Toggle
-                                  GestureDetector(
-                                    onTap: () => ref
-                                        .read(gridEnabledProvider.notifier)
-                                        .toggle(),
-                                    child: Icon(
-                                      ref.watch(gridEnabledProvider)
-                                          ? CupertinoIcons.grid
-                                          : CupertinoIcons.grid,
-                                      color: ref.watch(gridEnabledProvider)
-                                          ? Colors.yellow
-                                          : Colors.white,
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 18),
-
-                                  // Timer Toggle
-                                  GestureDetector(
-                                    onTap: () {
-                                      final current = ref.read(
-                                        timerDurationProvider,
-                                      );
-                                      final next = current == 0
-                                          ? 3
-                                          : (current == 3
-                                                ? 5
-                                                : (current == 5 ? 10 : 0));
-                                      ref
-                                          .read(timerDurationProvider.notifier)
-                                          .set(next);
-                                    },
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          ref.watch(timerDurationProvider) > 0
-                                              ? CupertinoIcons.timer_fill
-                                              : CupertinoIcons.timer,
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Flash/Torch Toggle
+                                      GestureDetector(
+                                        onTap: () => ref
+                                            .read(
+                                              isFlashEnabledProvider.notifier,
+                                            )
+                                            .toggle(),
+                                        child: Icon(
+                                          ref.watch(isFlashEnabledProvider)
+                                              ? CupertinoIcons.bolt_fill
+                                              : CupertinoIcons.bolt_slash,
                                           color:
-                                              ref.watch(timerDurationProvider) >
-                                                  0
+                                              ref.watch(isFlashEnabledProvider)
                                               ? Colors.yellow
                                               : Colors.white,
-                                          size: 22,
+                                          size: topBarIconSize,
                                         ),
-                                        if (ref.watch(timerDurationProvider) >
-                                            0) ...[
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            "${ref.watch(timerDurationProvider)}s",
-                                            style: const TextStyle(
-                                              color: Colors.yellow,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
+                                      ),
+                                      SizedBox(width: topBarIconGap),
+
+                                      // Exposure (EV) Toggle
+                                      GestureDetector(
+                                        onTap: () => ref
+                                            .read(
+                                              showExposureSliderProvider
+                                                  .notifier,
+                                            )
+                                            .toggle(),
+                                        child: Icon(
+                                          ref.watch(showExposureSliderProvider)
+                                              ? CupertinoIcons
+                                                    .slider_horizontal_3
+                                              : CupertinoIcons
+                                                    .slider_horizontal_3,
+                                          color:
+                                              ref.watch(
+                                                showExposureSliderProvider,
+                                              )
+                                              ? Colors.yellow
+                                              : Colors.white,
+                                          size: topBarIconSize,
+                                        ),
+                                      ),
+                                      SizedBox(width: topBarIconGap),
+
+                                      // HDR Toggle
+                                      GestureDetector(
+                                        onTap: () => ref
+                                            .read(hdrEnabledProvider.notifier)
+                                            .toggle(),
+                                        child: Icon(
+                                          ref.watch(hdrEnabledProvider)
+                                              ? CupertinoIcons.sun_max_fill
+                                              : CupertinoIcons.sun_max,
+                                          color: ref.watch(hdrEnabledProvider)
+                                              ? Colors.yellow
+                                              : Colors.white,
+                                          size: topBarIconSize,
+                                        ),
+                                      ),
+                                      SizedBox(width: topBarIconGap),
+
+                                      // Grid Toggle
+                                      GestureDetector(
+                                        onTap: () => ref
+                                            .read(gridEnabledProvider.notifier)
+                                            .toggle(),
+                                        child: Icon(
+                                          ref.watch(gridEnabledProvider)
+                                              ? CupertinoIcons.grid
+                                              : CupertinoIcons.grid,
+                                          color: ref.watch(gridEnabledProvider)
+                                              ? Colors.yellow
+                                              : Colors.white,
+                                          size: topBarIconSize,
+                                        ),
+                                      ),
+                                      SizedBox(width: topBarLargeGap),
+
+                                      // Timer Toggle
+                                      GestureDetector(
+                                        onTap: () {
+                                          final current = ref.read(
+                                            timerDurationProvider,
+                                          );
+                                          final next = current == 0
+                                              ? 3
+                                              : (current == 3
+                                                    ? 5
+                                                    : (current == 5 ? 10 : 0));
+                                          ref
+                                              .read(
+                                                timerDurationProvider.notifier,
+                                              )
+                                              .set(next);
+                                        },
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              ref.watch(timerDurationProvider) >
+                                                      0
+                                                  ? CupertinoIcons.timer_fill
+                                                  : CupertinoIcons.timer,
+                                              color:
+                                                  ref.watch(
+                                                        timerDurationProvider,
+                                                      ) >
+                                                      0
+                                                  ? Colors.yellow
+                                                  : Colors.white,
+                                              size: topBarIconSize,
                                             ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
+                                            if (ref.watch(
+                                                  timerDurationProvider,
+                                                ) >
+                                                0) ...[
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                "${ref.watch(timerDurationProvider)}s",
+                                                style: const TextStyle(
+                                                  color: Colors.yellow,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      SizedBox(width: topBarIconGap),
 
-                                  // Active Resolution (4K • 60) Action Sheet
-                                  Consumer(
-                                    builder: (context, ref, child) {
-                                      final resolutionsAsync = ref.watch(
-                                        resolutionsListProvider,
-                                      );
-                                      final activeRes = ref.watch(
-                                        activeResolutionProvider,
-                                      );
-                                      return resolutionsAsync.when(
-                                        data: (resolutions) {
-                                          if (resolutions.isEmpty)
-                                            return const SizedBox();
-                                          final displayRes =
-                                              activeRes ?? resolutions.first;
-                                          final label =
-                                              displayRes['label'] ??
-                                              "${displayRes['width']}x${displayRes['height']}";
+                                      // Active Resolution (4K • 60) Action Sheet
+                                      Consumer(
+                                        builder: (context, ref, child) {
+                                          final resolutionsAsync = ref.watch(
+                                            resolutionsListProvider,
+                                          );
+                                          final activeRes = ref.watch(
+                                            activeResolutionProvider,
+                                          );
+                                          return resolutionsAsync.when(
+                                            data: (resolutions) {
+                                              if (resolutions.isEmpty)
+                                                return const SizedBox();
+                                              final displayRes =
+                                                  activeRes ??
+                                                  resolutions.first;
+                                              final label =
+                                                  displayRes['label'] ??
+                                                  "${displayRes['width']}x${displayRes['height']}";
 
-                                          return GestureDetector(
-                                            onTap: () {
-                                              showCupertinoModalPopup(
-                                                context: context,
-                                                builder: (context) => CupertinoActionSheet(
-                                                  title: const Text(
-                                                    "video_format",
-                                                  ).tr(),
-                                                  message: const Text(
-                                                    "select_resolution_fps",
-                                                  ).tr(),
-                                                  actions: resolutions.map((
-                                                    res,
-                                                  ) {
-                                                    final resLabel =
-                                                        res['label'] ??
-                                                        "${res['width']}x${res['height']} • ${res['fps'] ?? 30}";
-                                                    return CupertinoActionSheetAction(
-                                                      onPressed: () {
-                                                        ref
-                                                            .read(
-                                                              activeResolutionProvider
-                                                                  .notifier,
-                                                            )
-                                                            .set(res);
-                                                        Navigator.pop(context);
-                                                      },
-                                                      child: Text(
-                                                        resLabel,
-                                                        style: const TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }).toList(),
-                                                  cancelButton:
-                                                      CupertinoActionSheetAction(
-                                                        isDestructiveAction:
-                                                            true,
-                                                        onPressed: () =>
+                                              return GestureDetector(
+                                                onTap: () {
+                                                  showCupertinoModalPopup(
+                                                    context: context,
+                                                    builder: (context) => CupertinoActionSheet(
+                                                      title: const Text(
+                                                        "video_format",
+                                                      ).tr(),
+                                                      message: const Text(
+                                                        "select_resolution_fps",
+                                                      ).tr(),
+                                                      actions: resolutions.map((
+                                                        res,
+                                                      ) {
+                                                        final resLabel =
+                                                            res['label'] ??
+                                                            "${res['width']}x${res['height']} • ${res['fps'] ?? 30}";
+                                                        return CupertinoActionSheetAction(
+                                                          onPressed: () {
+                                                            ref
+                                                                .read(
+                                                                  activeResolutionProvider
+                                                                      .notifier,
+                                                                )
+                                                                .set(res);
                                                             Navigator.pop(
                                                               context,
-                                                            ),
-                                                        child: const Text(
-                                                          "cancel",
-                                                        ).tr(),
+                                                            );
+                                                          },
+                                                          child: Text(
+                                                            resLabel,
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w500,
+                                                                ),
+                                                          ),
+                                                        );
+                                                      }).toList(),
+                                                      cancelButton:
+                                                          CupertinoActionSheetAction(
+                                                            isDestructiveAction:
+                                                                true,
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                  context,
+                                                                ),
+                                                            child: const Text(
+                                                              "cancel",
+                                                            ).tr(),
+                                                          ),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
                                                       ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white
+                                                        .withOpacity(0.2),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    label,
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: topBarResFont,
+                                                    ),
+                                                  ),
                                                 ),
                                               );
                                             },
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white.withOpacity(
-                                                  0.2,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                label,
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: isTablet ? 16 : 14,
-                                                ),
-                                              ),
-                                            ),
+                                            loading: () => const SizedBox(),
+                                            error: (e, st) => const SizedBox(),
                                           );
                                         },
-                                        loading: () => const SizedBox(),
-                                        error: (e, st) => const SizedBox(),
-                                      );
-                                    },
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
                           ],
                         ),
@@ -551,17 +607,27 @@ class _CameraViewState extends ConsumerState<CameraView> {
 
                         return Center(
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(23),
                             child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.3),
-                                  borderRadius: BorderRadius.circular(20),
+                                  color: Colors.white.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(23),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.15),
+                                    width: 1,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -626,7 +692,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                 .read(cameraProvider.notifier)
                                 .setMode(false), // Video Mode
                       child: Text(
-                        "VIDEO",
+                        "mode_video".tr(),
                         style: TextStyle(
                           color: !isPhotoMode ? Colors.yellow : Colors.white54,
                           fontWeight: FontWeight.bold,
@@ -643,7 +709,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                 .read(cameraProvider.notifier)
                                 .setMode(true), // Photo Mode
                       child: Text(
-                        "PHOTO",
+                        "mode_photo".tr(),
                         style: TextStyle(
                           color: isPhotoMode ? Colors.yellow : Colors.white54,
                           fontWeight: FontWeight.bold,
@@ -663,37 +729,89 @@ class _CameraViewState extends ConsumerState<CameraView> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Invisible spacer for flex balance
-                      const Expanded(child: SizedBox()),
-                      
+                      // Settings button
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Padding(
+                            padding: EdgeInsets.only(right: isTablet ? 60 : 30),
+                            child: isRecording
+                                ? const SizedBox()
+                                : GestureDetector(
+                                    onTap: () => context.push('/settings'),
+                                    child: Container(
+                                      width: isTablet ? 64 : 56,
+                                      height: isTablet ? 64 : 56,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.12),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.2),
+                                          width: 1,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.2,
+                                            ),
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        CupertinoIcons.settings,
+                                        color: Colors.white,
+                                        size: isTablet ? 32 : 26,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+
                       // Centered record button
                       RecordButton(
                         isRecording: isRecording,
                         isPhotoMode: isPhotoMode,
-                        onTap: () => _handleCaptureAction(isPhotoMode, isRecording),
+                        onTap: () =>
+                            _handleCaptureAction(isPhotoMode, isRecording),
                       ),
-                      
+
                       // Camera switch to the right
                       Expanded(
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Padding(
-                            padding: const EdgeInsets.only(left: 30),
+                            padding: EdgeInsets.only(left: isTablet ? 60 : 30),
                             child: isRecording
                                 ? const SizedBox()
                                 : GestureDetector(
-                                    onTap: () => ref.read(isFrontCameraProvider.notifier).toggle(),
+                                    onTap: () => ref
+                                        .read(isFrontCameraProvider.notifier)
+                                        .toggle(),
                                     child: Container(
-                                      width: 48,
-                                      height: 48,
+                                      width: isTablet ? 64 : 56,
+                                      height: isTablet ? 64 : 56,
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.4),
+                                        color: Colors.white.withOpacity(0.12),
                                         shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.2),
+                                          width: 1,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.2,
+                                            ),
+                                            blurRadius: 4,
+                                          ),
+                                        ],
                                       ),
-                                      child: const Icon(
+                                      child: Icon(
                                         CupertinoIcons.camera_rotate,
                                         color: Colors.white,
-                                        size: 26,
+                                        size: isTablet ? 32 : 26,
                                       ),
                                     ),
                                   ),
@@ -770,12 +888,22 @@ class _CameraViewState extends ConsumerState<CameraView> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                   child: Container(
                     width: 40,
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.white.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.15),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 4,
+                        ),
+                      ],
                     ),
                     child: RotatedBox(
                       quarterTurns: 3, // Makes the horizontal slider vertical

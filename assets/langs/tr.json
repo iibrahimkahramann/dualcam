@@ -1,0 +1,51 @@
+{
+  "9:16": "9:16 (Dikey)",
+  "16:9": "16:9 (Yatay)",
+  "recording": "Kaydediliyor...",
+  "saved_files": "Kaydedilen Dosyalar:",
+  "video_format": "Video Formatı",
+  "select_resolution_fps": "Çözünürlük ve FPS seçin",
+  "cancel": "İptal",
+
+  "photo_saved": "Fotoğraf galeriye kaydedildi.",
+  "video_saved": "Video galeriye kaydedildi.",
+
+  "mode_video": "VİDEO",
+  "mode_photo": "FOTOĞRAF",
+
+  "aspect_vertical": "9:16 (Dikey)",
+  "aspect_horizontal": "16:9 (Yatay)",
+
+  "settings_title": "Ayarlar",
+  "settings_upgrade_title": "PRO'ya Yükselt",
+  "settings_upgrade_subtitle": "Tüm premium özelliklerin kilidini aç",
+  "settings_premium_active": "Premium Aktif",
+  "settings_premium_thanks": "Desteğiniz için teşekkürler!",
+  "settings_about": "HAKKINDA",
+  "settings_rate_us": "Bizi Oyla",
+  "settings_terms": "Kullanım Koşulları",
+  "settings_privacy": "Gizlilik Politikası",
+
+  "onboarding_skip": "Geç",
+  "onboarding_continue": "Devam",
+  "onboarding_get_started": "Başla",
+
+  "onboarding_1_title": "Tek Çekim,\nİki Video",
+  "onboarding_1_subtitle": "Dikey ve yatay videoyu\naynı anda tek çekimde kaydet.",
+
+  "onboarding_2_title": "Her Platform İçin\nAnında İçerik",
+  "onboarding_2_subtitle": "Kısa içerik için dikey.\nUzun içerik için yatay.\nİkisi de hazır, düzenleme yok.",
+  "onboarding_2_tiktok": "TikTok\nve Reels",
+  "onboarding_2_youtube": "YouTube",
+
+  "onboarding_3_title": "Pro Kamera\nKontrolleri",
+  "onboarding_3_subtitle": "4K kayıt, ayarlanabilir FPS,\nflaş, HDR, zamanlayıcı — ihtiyacın\nolan her şey tek uygulamada.",
+  "feature_flash": "Flaş",
+  "feature_focus": "Odak",
+  "feature_exposure": "Pozlama",
+  "feature_timer": "Zamanlayıcı",
+  "feature_grid": "Izgara",
+  "feature_zoom": "Yakınlaştır",
+
+  "camera_not_supported": "Kamera önizlemesi bu platformda desteklenmiyor."
+}
