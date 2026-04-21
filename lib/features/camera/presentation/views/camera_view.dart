@@ -8,6 +8,7 @@ import '../widgets/camera_horizontal_preview.dart';
 import '../widgets/record_button.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:two_camera/providers/rc/rc_placement_provider.dart';
 
 final GlobalKey dualCameraKey = GlobalKey(debugLabel: 'dual');
 final GlobalKey horizCameraKey = GlobalKey(debugLabel: 'horiz');
@@ -57,6 +58,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(cameraProvider.notifier).initialize();
+      showPaywallWithPlacement('default', 'premium');
     });
   }
 

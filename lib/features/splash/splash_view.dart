@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:two_camera/providers/rc/rc_placement_provider.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -26,7 +25,7 @@ class _SplashViewState extends State<SplashView> {
 
     if (!mounted) return;
     if (onboardingComplete) {
-      showPaywallWithPlacement('default', 'premium');
+      context.go('/home');
     } else {
       context.go('/onboarding');
     }
