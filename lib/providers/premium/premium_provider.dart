@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 class PremiumNotifier extends StateNotifier<bool> {
   // SET TO TRUE FOR TESTING PREMIUM STATE
-  PremiumNotifier() : super(false) {
+  PremiumNotifier() : super(true) {
     _initializePremiumStatus();
   }
 

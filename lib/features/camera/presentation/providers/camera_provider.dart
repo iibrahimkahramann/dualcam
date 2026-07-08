@@ -107,6 +107,38 @@ final maxZoomProvider = FutureProvider<double>((ref) async {
   return await ref.read(cameraRepositoryProvider).getMaxZoom();
 });
 
+final isMultiCamSupportedProvider = FutureProvider<bool>((ref) async {
+  return await ref.read(cameraRepositoryProvider).isMultiCamSupported();
+});
+
+class DualCamModeNotifier extends Notifier<bool> {
+  @override
+  bool build() => true; // Default to true (PiP Mode enabled) if supported
+
+  void toggle() {
+    state = !state;
+    ref.read(cameraRepositoryProvider).setDualCamModeEnabled(state);
+  }
+}
+
+final isDualCamModeEnabledProvider = NotifierProvider<DualCamModeNotifier, bool>(() {
+  return DualCamModeNotifier();
+});
+
+class WideAngleModeNotifier extends Notifier<bool> {
+  @override
+  bool build() => false; // Default to false
+
+  void toggle() {
+    state = !state;
+    ref.read(cameraRepositoryProvider).setWideAngleModeEnabled(state);
+  }
+}
+
+final isWideAngleModeEnabledProvider = NotifierProvider<WideAngleModeNotifier, bool>(() {
+  return WideAngleModeNotifier();
+});
+
 class ZoomLevelNotifier extends Notifier<double> {
   @override
   double build() => 1.0;

@@ -5,6 +5,7 @@ import 'dart:ui' show ImageFilter;
 import '../providers/camera_provider.dart';
 import '../widgets/dual_camera_preview.dart';
 import '../widgets/camera_horizontal_preview.dart';
+import '../widgets/camera_front_preview.dart';
 import '../widgets/record_button.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart';
@@ -119,11 +120,10 @@ class _CameraViewState extends ConsumerState<CameraView> {
     final isCompact = size.width < 380;
 
     // Responsive metrics for the glass top bar
-    final topBarIconSize = isTablet ? 26.0 : (isCompact ? 22.0 : 60.0);
-    final topBarIconGap = isTablet ? 18.0 : (isCompact ? 8.0 : 12.0);
-    final topBarLargeGap = isTablet ? 22.0 : (isCompact ? 10.0 : 19.0);
-    final topBarLabelFont = isTablet ? 18.0 : (isCompact ? 13.0 : 20.0);
-    final topBarResFont = isTablet ? 16.0 : (isCompact ? 12.0 : 28.0);
+    final topBarIconSize = isTablet ? 26.0 : (isCompact ? 20.0 : 22.0);
+    final topBarIconGap = isTablet ? 18.0 : (isCompact ? 8.0 : 16.0);
+    final topBarLargeGap = isTablet ? 22.0 : (isCompact ? 10.0 : 20.0);
+    final topBarResFont = isTablet ? 16.0 : (isCompact ? 12.0 : 14.0);
     final topBarHPadding = isTablet ? 1.0 : (isCompact ? 10.0 : 12.0);
     final topBarOuterPad = isTablet ? 16.0 : (isCompact ? 10.0 : 12.0);
 
@@ -135,6 +135,9 @@ class _CameraViewState extends ConsumerState<CameraView> {
     final activeTimer = ref.watch(activeTimerCountdownProvider);
     final focusPoint = ref.watch(focusPointProvider);
     final gridEnabled = ref.watch(gridEnabledProvider);
+
+    final isMultiCamSupportedAsync = ref.watch(isMultiCamSupportedProvider);
+    final isMultiCamSupported = isMultiCamSupportedAsync.value ?? false;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -175,16 +178,16 @@ class _CameraViewState extends ConsumerState<CameraView> {
               },
               child: Container(
                 color: Colors.black,
-                child: isPipSwapped
-                    ? Center(
-                        child: AspectRatio(
-                          aspectRatio:
-                              16.0 /
-                              9.0, // Horizontal 16:9 stream fit onto the screen
-                          child: CameraHorizontalPreview(key: horizCameraKey),
-                        ),
-                      )
-                    : DualCameraPreview(key: dualCameraKey),
+                child: Builder(builder: (context) {
+                  final isDualMode = isMultiCamSupported && ref.watch(isDualCamModeEnabledProvider);
+                  final showFrontCamera = isDualMode ? isPipSwapped : ref.watch(isFrontCameraProvider);
+                  
+                  if (isMultiCamSupported && showFrontCamera) {
+                    return const CameraFrontPreview();
+                  } else {
+                    return DualCameraPreview(key: dualCameraKey);
+                  }
+                }),
               ),
             ),
           ),
@@ -266,9 +269,10 @@ class _CameraViewState extends ConsumerState<CameraView> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // 9:16 indicator or Recording Indicator
-                            isRecording
-                                ? Row(
+                            // Recording Indicator
+                            if (isRecording)
+                                Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
                                       const Icon(
                                         CupertinoIcons.circle_fill,
@@ -300,27 +304,12 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                       ),
                                     ],
                                   )
-                                : Flexible(
-                                    child: Text(
-                                      isPipSwapped
-                                          ? 'aspect_horizontal'.tr()
-                                          : 'aspect_vertical'.tr(),
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: topBarLabelFont,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-
-                            // Settings Items & Resolution
-                            if (!isRecording) const SizedBox(width: 10),
-                            if (!isRecording)
+                            else
+                              // Settings Items & Resolution
                               Flexible(
                                 child: FittedBox(
                                   fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerRight,
+                                  alignment: Alignment.center,
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -561,6 +550,17 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                           );
                                         },
                                       ),
+                                      SizedBox(width: topBarIconGap),
+
+                                      // Settings Button
+                                      GestureDetector(
+                                        onTap: () => context.push('/settings'),
+                                        child: Icon(
+                                          CupertinoIcons.settings,
+                                          color: Colors.white,
+                                          size: topBarIconSize,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -723,7 +723,47 @@ class _CameraViewState extends ConsumerState<CameraView> {
                   ],
                 ),
 
-                SizedBox(height: size.height * 0.02),
+                SizedBox(height: size.height * 0.015),
+                
+                // Wide Angle Mode Toggle (Pill)
+                if (!ref.watch(isDualCamModeEnabledProvider) && !isRecording)
+                  GestureDetector(
+                    onTap: () => ref.read(isWideAngleModeEnabledProvider.notifier).toggle(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: ref.watch(isWideAngleModeEnabledProvider) ? Colors.yellow : Colors.white30,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            CupertinoIcons.rectangle_expand_vertical, 
+                            color: ref.watch(isWideAngleModeEnabledProvider) ? Colors.yellow : Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "Geniş Açı",
+                            style: TextStyle(
+                              color: ref.watch(isWideAngleModeEnabledProvider) ? Colors.yellow : Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(height: 30),
+
+                SizedBox(height: size.height * 0.015),
 
                 // Bottom Bar: Record Button and Camera Switch
                 Padding(
@@ -731,7 +771,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Settings button
+                      // PiP Button (if MultiCam supported)
                       Expanded(
                         child: Align(
                           alignment: Alignment.centerRight,
@@ -739,34 +779,48 @@ class _CameraViewState extends ConsumerState<CameraView> {
                             padding: EdgeInsets.only(right: isTablet ? 60 : 30),
                             child: isRecording
                                 ? const SizedBox()
-                                : GestureDetector(
-                                    onTap: () => context.push('/settings'),
-                                    child: Container(
-                                      width: isTablet ? 64 : 56,
-                                      height: isTablet ? 64 : 56,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.12),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.2),
-                                          width: 1,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              0.2,
-                                            ),
-                                            blurRadius: 4,
+                                : (isMultiCamSupported ? GestureDetector(
+                                    onTap: ref.watch(isWideAngleModeEnabledProvider) 
+                                        ? () {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text("Lütfen önce Geniş Açı modunu kapatın."),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          } 
+                                        : () => ref.read(isDualCamModeEnabledProvider.notifier).toggle(),
+                                    child: Opacity(
+                                      opacity: ref.watch(isWideAngleModeEnabledProvider) ? 0.5 : 1.0,
+                                      child: Container(
+                                        width: isTablet ? 64 : 56,
+                                        height: isTablet ? 64 : 56,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.12),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.2),
+                                            width: 1,
                                           ),
-                                        ],
-                                      ),
-                                      child: Icon(
-                                        CupertinoIcons.settings,
-                                        color: Colors.white,
-                                        size: isTablet ? 32 : 26,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.2),
+                                              blurRadius: 4,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Icon(
+                                          ref.watch(isDualCamModeEnabledProvider)
+                                              ? CupertinoIcons.rectangle_on_rectangle
+                                              : CupertinoIcons.rectangle_on_rectangle_angled,
+                                          color: ref.watch(isDualCamModeEnabledProvider)
+                                              ? Colors.yellow
+                                              : Colors.white,
+                                          size: isTablet ? 32 : 26,
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                  ) : const SizedBox()),
                           ),
                         ),
                       ),
@@ -788,9 +842,13 @@ class _CameraViewState extends ConsumerState<CameraView> {
                             child: isRecording
                                 ? const SizedBox()
                                 : GestureDetector(
-                                    onTap: () => ref
-                                        .read(isFrontCameraProvider.notifier)
-                                        .toggle(),
+                                    onTap: () {
+                                      if (isMultiCamSupported && ref.read(isDualCamModeEnabledProvider)) {
+                                        ref.read(isPipSwappedProvider.notifier).toggle();
+                                      } else {
+                                        ref.read(isFrontCameraProvider.notifier).toggle();
+                                      }
+                                    },
                                     child: Container(
                                       width: isTablet ? 64 : 56,
                                       height: isTablet ? 64 : 56,
@@ -943,62 +1001,75 @@ class _CameraViewState extends ConsumerState<CameraView> {
             ),
 
           // Floating PIP View (Animated)
-          Consumer(
-            builder: (context, ref, child) {
-              final isPipSwapped = ref.watch(isPipSwappedProvider);
-              final pipWidth = isPipSwapped ? (pipBaseSize * 0.5) : pipBaseSize;
-              final pipHeight = isPipSwapped
-                  ? ((pipBaseSize * 0.5) * (16.0 / 9.0))
-                  : (pipBaseSize * (9.0 / 16.0));
+          if (ref.watch(isDualCamModeEnabledProvider) || ref.watch(isWideAngleModeEnabledProvider))
+            Consumer(
+              builder: (context, ref, child) {
+                final isWideAngle = ref.watch(isWideAngleModeEnabledProvider);
+                final isPipSwapped = ref.watch(isPipSwappedProvider);
+                
+                double pipWidth;
+                double pipHeight;
+                double pipTop;
+                double pipLeft;
 
-              // Top padding to sit under black bar offset when swapped, or slightly above Zoom Buttons when Normal
-              final pipTop = isPipSwapped
-                  ? (MediaQuery.of(context).padding.top +
-                        (isTablet ? 120.0 : 80.0))
-                  : (size.height - pipHeight - (isTablet ? 300.0 : 270.0));
+                if (isWideAngle) {
+                    pipWidth = pipBaseSize;
+                    pipHeight = pipWidth * (9.0 / 16.0); // 16:9 horizontal
+                    pipTop = MediaQuery.of(context).padding.top + (isTablet ? 90.0 : 70.0);
+                    pipLeft = size.width - pipWidth - 16.0; // Right aligned
+                } else if (isMultiCamSupported) {
+                    pipWidth = pipBaseSize * 0.65;
+                    pipHeight = pipWidth * (16.0 / 9.0);
+                    pipTop = MediaQuery.of(context).padding.top + (isTablet ? 90.0 : 70.0);
+                    pipLeft = size.width - pipWidth - 16.0; // Right aligned
+                } else {
+                    pipWidth = isPipSwapped ? (pipBaseSize * 0.5) : pipBaseSize;
+                    pipHeight = isPipSwapped 
+                        ? (pipWidth * (16.0 / 9.0)) 
+                        : (pipWidth * (9.0 / 16.0));
+                    pipTop = isPipSwapped
+                       ? (MediaQuery.of(context).padding.top + (isTablet ? 120.0 : 80.0))
+                       : (size.height - pipHeight - (isTablet ? 300.0 : 270.0));
+                    pipLeft = (size.width - pipWidth) / 2; // Centered
+                }
 
-              return AnimatedPositioned(
-                duration: const Duration(milliseconds: 350),
-                curve: Curves.easeOutCubic,
-                top: pipTop,
-                left: (size.width - pipWidth) / 2, // Centered horizontally
-                width: pipWidth,
-                height: pipHeight,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.yellow,
-                      width: isTablet ? 3 : 2,
-                    ),
-                    borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
-                    color: Colors.black,
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black54, blurRadius: 10),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(isTablet ? 9 : 6),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        isPipSwapped
-                            ? DualCameraPreview(key: dualCameraKey)
-                            : CameraHorizontalPreview(key: horizCameraKey),
-
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            ref.read(isPipSwappedProvider.notifier).toggle();
-                          },
-                          child: Container(color: Colors.transparent),
-                        ),
+                return AnimatedPositioned(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeOutCubic,
+                  top: pipTop,
+                  left: pipLeft,
+                  width: pipWidth,
+                  height: pipHeight,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.yellow,
+                        width: isTablet ? 3 : 2,
+                      ),
+                      borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
+                      color: Colors.black,
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black54, blurRadius: 10),
                       ],
                     ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(isTablet ? 9 : 6),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (isWideAngle)
+                              CameraHorizontalPreview(key: horizCameraKey)
+                          else
+                              isPipSwapped
+                                  ? DualCameraPreview(key: dualCameraKey)
+                                  : CameraHorizontalPreview(key: horizCameraKey),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
         ],
       ),
     );

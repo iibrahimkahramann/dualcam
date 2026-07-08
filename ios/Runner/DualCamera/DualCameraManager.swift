@@ -1,38 +1,62 @@
 import Foundation
 import AVFoundation
+import CoreImage
 
 protocol DualCameraManagerDelegate: AnyObject {
-    func didOutput(videoSampleBuffer: CMSampleBuffer)
+    func didOutput(videoSampleBuffer: CMSampleBuffer, from position: AVCaptureDevice.Position)
     func didOutput(audioSampleBuffer: CMSampleBuffer)
     func cameraError(_ error: Error)
 }
 
-/// Manages AVCaptureSession and its outputs.
 protocol CameraHorizontalPreviewObserver: AnyObject {
     func didOutputCroppedFrame(_ pixelBuffer: CVPixelBuffer)
 }
 
+protocol CameraFrontPreviewObserver: AnyObject {
+    func didOutputFrontFrame(_ pixelBuffer: CVPixelBuffer)
+}
+
 class DualCameraManager: NSObject {
+    
     weak var delegate: DualCameraManagerDelegate?
     private var previewObservers = [CameraHorizontalPreviewObserver]()
+    private var frontPreviewObservers = [CameraFrontPreviewObserver]()
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
     private var pixelBufferPool: CVPixelBufferPool?
     
-    let captureSession = AVCaptureSession()
+    let isMultiCamSupported = AVCaptureMultiCamSession.isMultiCamSupported
+    lazy var captureSession: AVCaptureSession = {
+        if isMultiCamSupported {
+            return AVCaptureMultiCamSession()
+        } else {
+            return AVCaptureSession()
+        }
+    }()
+    
     private let sessionQueue = DispatchQueue(label: "com.two_camera.sessionQueue")
     private let captureQueue = DispatchQueue(label: "com.two_camera.captureQueue", qos: .userInteractive)
     
-    private var videoOutput: AVCaptureVideoDataOutput?
+    private var backVideoOutput: AVCaptureVideoDataOutput?
+    private var frontVideoOutput: AVCaptureVideoDataOutput?
     private var audioOutput: AVCaptureAudioDataOutput?
+    
+    static let shared = DualCameraManager()
     
     var currentCameraPosition: AVCaptureDevice.Position = .back
     
+    var isDualCamModeEnabled: Bool = true
+    var isWideAngleModeEnabled: Bool = false
+    
     var activeDevice: AVCaptureDevice? {
+        if isMultiCamSupported {
+            return getCamera(with: currentCameraPosition)
+        }
         return (captureSession.inputs.first(where: { ($0 as? AVCaptureDeviceInput)?.device.hasMediaType(.video) == true }) as? AVCaptureDeviceInput)?.device
     }
     
     var currentCaptureWidth = 1080
     var currentCaptureHeight = 1920
+    var currentFPS = 30
     
     var isRunning: Bool {
         return captureSession.isRunning
@@ -91,55 +115,107 @@ class DualCameraManager: NSObject {
     
     private func configureSession() {
         captureSession.beginConfiguration()
-        if captureSession.canSetSessionPreset(.high) {
-            captureSession.sessionPreset = .high // Or .hd4K3840x2160 depending on requirements
-        }
-        // Setup Video Input
-        let initialPosition = self.currentCameraPosition
-        guard let camera = getCamera(with: initialPosition),
-              let videoInput = try? AVCaptureDeviceInput(device: camera) else {
-            notifyError(NSError(domain: "Camera", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to get camera input"]))
-            return
+        if !isMultiCamSupported, captureSession.canSetSessionPreset(.high) {
+            captureSession.sessionPreset = .high
         }
         
-        if captureSession.canAddInput(videoInput) {
-            captureSession.addInput(videoInput)
-        }
-        
-        // Setup Audio Input
-        if let audioDevice = AVCaptureDevice.default(for: .audio),
-           let audioInput = try? AVCaptureDeviceInput(device: audioDevice) {
-            if captureSession.canAddInput(audioInput) {
+        if isMultiCamSupported {
+            guard let backCamera = getCamera(with: .back),
+                  let frontCamera = getCamera(with: .front),
+                  let backInput = try? AVCaptureDeviceInput(device: backCamera),
+                  let frontInput = try? AVCaptureDeviceInput(device: frontCamera) else {
+                notifyError(NSError(domain: "Camera", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to get multi-camera inputs"]))
+                return
+            }
+            
+            if captureSession.canAddInput(backInput) {
+                captureSession.addInput(backInput)
+            }
+            if captureSession.canAddInput(frontInput) {
+                captureSession.addInput(frontInput)
+            }
+            
+            if let audioDevice = AVCaptureDevice.default(for: .audio),
+               let audioInput = try? AVCaptureDeviceInput(device: audioDevice),
+               captureSession.canAddInput(audioInput) {
                 captureSession.addInput(audioInput)
             }
-        }
-        
-        // Setup Video Output
-        let vOutput = AVCaptureVideoDataOutput()
-        vOutput.setSampleBufferDelegate(self, queue: captureQueue)
-        vOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)]
-        vOutput.alwaysDiscardsLateVideoFrames = true
-        
-        if captureSession.canAddOutput(vOutput) {
-            captureSession.addOutput(vOutput)
-            self.videoOutput = vOutput
             
-            if let connection = vOutput.connection(with: .video) {
-                if connection.isVideoOrientationSupported {
-                    connection.videoOrientation = .portrait // Base recorded view is Portrait
-                }
-                if initialPosition == .front && connection.isVideoMirroringSupported {
-                    connection.isVideoMirrored = true
+            let bOutput = AVCaptureVideoDataOutput()
+            bOutput.setSampleBufferDelegate(self, queue: captureQueue)
+            bOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)]
+            bOutput.alwaysDiscardsLateVideoFrames = true
+            if captureSession.canAddOutput(bOutput) {
+                captureSession.addOutput(bOutput)
+                self.backVideoOutput = bOutput
+                if let conn = bOutput.connection(with: .video) {
+                    if conn.isVideoOrientationSupported { conn.videoOrientation = .portrait }
                 }
             }
-        }
-        
-        // Setup Audio Output
-        let aOutput = AVCaptureAudioDataOutput()
-        aOutput.setSampleBufferDelegate(self, queue: captureQueue)
-        if captureSession.canAddOutput(aOutput) {
-            captureSession.addOutput(aOutput)
-            self.audioOutput = aOutput
+            
+            let fOutput = AVCaptureVideoDataOutput()
+            fOutput.setSampleBufferDelegate(self, queue: captureQueue)
+            fOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)]
+            fOutput.alwaysDiscardsLateVideoFrames = true
+            if captureSession.canAddOutput(fOutput) {
+                captureSession.addOutput(fOutput)
+                self.frontVideoOutput = fOutput
+                if let conn = fOutput.connection(with: .video) {
+                    if conn.isVideoOrientationSupported { conn.videoOrientation = .portrait }
+                    if conn.isVideoMirroringSupported { conn.isVideoMirrored = true }
+                }
+            }
+            
+            let aOutput = AVCaptureAudioDataOutput()
+            aOutput.setSampleBufferDelegate(self, queue: captureQueue)
+            if captureSession.canAddOutput(aOutput) {
+                captureSession.addOutput(aOutput)
+                self.audioOutput = aOutput
+            }
+            
+        } else {
+            let initialPosition = self.currentCameraPosition
+            guard let camera = getCamera(with: initialPosition),
+                  let videoInput = try? AVCaptureDeviceInput(device: camera) else {
+                notifyError(NSError(domain: "Camera", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to get camera input"]))
+                return
+            }
+            
+            if captureSession.canAddInput(videoInput) {
+                captureSession.addInput(videoInput)
+            }
+            
+            if let audioDevice = AVCaptureDevice.default(for: .audio),
+               let audioInput = try? AVCaptureDeviceInput(device: audioDevice),
+               captureSession.canAddInput(audioInput) {
+                captureSession.addInput(audioInput)
+            }
+            
+            let vOutput = AVCaptureVideoDataOutput()
+            vOutput.setSampleBufferDelegate(self, queue: captureQueue)
+            vOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)]
+            vOutput.alwaysDiscardsLateVideoFrames = true
+            
+            if captureSession.canAddOutput(vOutput) {
+                captureSession.addOutput(vOutput)
+                self.backVideoOutput = vOutput
+                
+                if let connection = vOutput.connection(with: .video) {
+                    if connection.isVideoOrientationSupported {
+                        connection.videoOrientation = .portrait
+                    }
+                    if initialPosition == .front && connection.isVideoMirroringSupported {
+                        connection.isVideoMirrored = true
+                    }
+                }
+            }
+            
+            let aOutput = AVCaptureAudioDataOutput()
+            aOutput.setSampleBufferDelegate(self, queue: captureQueue)
+            if captureSession.canAddOutput(aOutput) {
+                captureSession.addOutput(aOutput)
+                self.audioOutput = aOutput
+            }
         }
         
         captureSession.commitConfiguration()
@@ -151,8 +227,10 @@ class DualCameraManager: NSObject {
         }
     }
     
-    // Helper to fetch camera device based on position
     private func getCamera(with position: AVCaptureDevice.Position) -> AVCaptureDevice? {
+        if isMultiCamSupported {
+            return AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position)
+        }
         if let device = AVCaptureDevice.default(.builtInDualCamera, for: .video, position: position) {
             return device
         } else if let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position) {
@@ -161,10 +239,8 @@ class DualCameraManager: NSObject {
         return nil
     }
     
-    // MARK: - Advanced Features
-    
     func getAvailableResolutions() -> [[String: Any]] {
-        guard let device = activeDevice ?? getCamera(with: currentCameraPosition) else { return [] }
+        guard let device = activeDevice else { return [] }
         var resolutions: [[String: Any]] = []
         var uniqueKeys = Set<String>()
         
@@ -210,9 +286,20 @@ class DualCameraManager: NSObject {
     }
     
     func setResolution(width: Int, height: Int, fps: Int) throws {
-        guard let videoInput = captureSession.inputs.first(where: { ($0 as? AVCaptureDeviceInput)?.device.hasMediaType(.video) == true }) as? AVCaptureDeviceInput else { return }
-        let device = videoInput.device
-        
+        if isMultiCamSupported {
+            if let backCamera = getCamera(with: .back), let frontCamera = getCamera(with: .front) {
+                try applyResolution(to: backCamera, width: width, height: height, fps: fps)
+                try applyResolution(to: frontCamera, width: width, height: height, fps: fps)
+            }
+        } else {
+            guard let videoInput = captureSession.inputs.first(where: { ($0 as? AVCaptureDeviceInput)?.device.hasMediaType(.video) == true }) as? AVCaptureDeviceInput else { return }
+            try applyResolution(to: videoInput.device, width: width, height: height, fps: fps)
+        }
+        currentCaptureWidth = height
+        currentCaptureHeight = width
+    }
+    
+    private func applyResolution(to device: AVCaptureDevice, width: Int, height: Int, fps: Int) throws {
         var bestFormat: AVCaptureDevice.Format?
         for format in device.formats {
             let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
@@ -233,11 +320,6 @@ class DualCameraManager: NSObject {
             device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
             device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
             device.unlockForConfiguration()
-            
-            currentCaptureWidth = height
-            currentCaptureHeight = width
-        } else {
-            throw NSError(domain: "CameraManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "Resolution/FPS not supported"])
         }
     }
     
@@ -274,41 +356,39 @@ class DualCameraManager: NSObject {
         device.unlockForConfiguration()
     }
     
-    // MARK: - Zoom Features
-    
     func getMaxZoom() -> Double {
         guard let device = activeDevice else { return 1.0 }
         let maxZoom = device.activeFormat.videoMaxZoomFactor
-        return min(Double(maxZoom), 5.0) // Caps maximum reasonable digital zoom before quality decays severely
+        return min(Double(maxZoom), 5.0)
     }
     
     func setZoom(factor: CGFloat) throws {
         guard let device = activeDevice else { return }
-        
         let maxZoom = min(device.activeFormat.videoMaxZoomFactor, 5.0)
         let safeFactor = max(1.0, min(factor, maxZoom))
-        
         try device.lockForConfiguration()
         device.videoZoomFactor = safeFactor
         device.unlockForConfiguration()
     }
     
-    // MARK: - Toggle Features
-    
     func switchCamera(completion: @escaping (Result<Double, Error>) -> Void) {
+        if isMultiCamSupported {
+            self.currentCameraPosition = (self.currentCameraPosition == .back) ? .front : .back
+            let newMaxZoom = self.getMaxZoom()
+            DispatchQueue.main.async { completion(.success(newMaxZoom)) }
+            return
+        }
+        
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
             self.captureSession.beginConfiguration()
             
-            // Remove old input
             if let currentInput = self.captureSession.inputs.first(where: { ($0 as? AVCaptureDeviceInput)?.device.hasMediaType(.video) == true }) as? AVCaptureDeviceInput {
                 self.captureSession.removeInput(currentInput)
             }
             
-            // Toggle position
             self.currentCameraPosition = (self.currentCameraPosition == .back) ? .front : .back
             
-            // Re-add new input
             do {
                 guard let newCamera = self.getCamera(with: self.currentCameraPosition) else {
                     throw NSError(domain: "Camera", code: 404, userInfo: [NSLocalizedDescriptionKey: "Target camera not found"])
@@ -317,8 +397,7 @@ class DualCameraManager: NSObject {
                 if self.captureSession.canAddInput(newInput) {
                     self.captureSession.addInput(newInput)
                     
-                    // Reset orientation and mirror front camera securely
-                    if let connection = self.videoOutput?.connection(with: .video) {
+                    if let connection = self.backVideoOutput?.connection(with: .video) {
                         if connection.isVideoOrientationSupported {
                             connection.videoOrientation = .portrait
                         }
@@ -326,10 +405,7 @@ class DualCameraManager: NSObject {
                             connection.isVideoMirrored = (self.currentCameraPosition == .front)
                         }
                     }
-                    
                     self.captureSession.commitConfiguration()
-                    
-                    // Get new max zoom safely
                     let newMaxZoom = self.getMaxZoom()
                     DispatchQueue.main.async { completion(.success(newMaxZoom)) }
                 } else {
@@ -367,16 +443,58 @@ extension DualCameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCap
         previewObservers.removeAll(where: { $0 === observer })
     }
 
+    func addFrontPreviewObserver(_ observer: CameraFrontPreviewObserver) {
+        if !frontPreviewObservers.contains(where: { $0 === observer }) {
+            frontPreviewObservers.append(observer)
+        }
+    }
+    
+    func removeFrontPreviewObserver(_ observer: CameraFrontPreviewObserver) {
+        frontPreviewObservers.removeAll(where: { $0 === observer })
+    }
+
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        if output == videoOutput {
-            delegate?.didOutput(videoSampleBuffer: sampleBuffer)
+        if output == backVideoOutput {
+            let pos: AVCaptureDevice.Position = isMultiCamSupported ? .back : .unspecified
+            delegate?.didOutput(videoSampleBuffer: sampleBuffer, from: pos)
             
-            // Generate horizontal cropped buffer if anyone is observing
             if !previewObservers.isEmpty {
-                if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-                    processHorizontalPreview(pixelBuffer)
+                if !isMultiCamSupported {
+                    if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+                        processHorizontalPreview(pixelBuffer)
+                    }
+                } else if isWideAngleModeEnabled && currentCameraPosition == .back {
+                    if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+                        processHorizontalPreview(pixelBuffer)
+                    }
                 }
             }
+            
+        } else if output == frontVideoOutput {
+            delegate?.didOutput(videoSampleBuffer: sampleBuffer, from: .front)
+            
+            if !frontPreviewObservers.isEmpty {
+                if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+                    for observer in frontPreviewObservers {
+                        observer.didOutputFrontFrame(pixelBuffer)
+                    }
+                }
+            }
+            
+            if !previewObservers.isEmpty {
+                if isDualCamModeEnabled {
+                    if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+                        for observer in previewObservers {
+                            observer.didOutputCroppedFrame(pixelBuffer)
+                        }
+                    }
+                } else if isWideAngleModeEnabled && currentCameraPosition == .front {
+                    if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+                        processHorizontalPreview(pixelBuffer)
+                    }
+                }
+            }
+            
         } else if output == audioOutput {
             delegate?.didOutput(audioSampleBuffer: sampleBuffer)
         }
@@ -389,7 +507,6 @@ extension DualCameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCap
         let originalHHeight = Int(Double(width) * (9.0 / 16.0))
         let yOffset = (height - originalHHeight) / 2
         
-        // Target size for PiP (Higher resolution to prevent blurriness on larger UI)
         let pipWidth = 480
         let pipHeight = 270
         

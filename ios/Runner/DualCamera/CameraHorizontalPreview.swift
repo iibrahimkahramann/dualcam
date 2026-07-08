@@ -50,3 +50,50 @@ extension CameraHorizontalPreviewView: CameraHorizontalPreviewObserver {
         }
     }
 }
+
+class CameraFrontPreviewFactory: NSObject, FlutterPlatformViewFactory {
+    private var cameraManager: DualCameraManager
+    
+    init(cameraManager: DualCameraManager) {
+        self.cameraManager = cameraManager
+        super.init()
+    }
+    
+    func create(withFrame frame: CGRect, viewIdentifier viewId: Int64, arguments args: Any?) -> FlutterPlatformView {
+        return CameraFrontPreviewView(frame: frame, cameraManager: cameraManager)
+    }
+}
+
+class CameraFrontPreviewView: NSObject, FlutterPlatformView {
+    private let imageView: UIImageView
+    private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+    
+    init(frame: CGRect, cameraManager: DualCameraManager) {
+        self.imageView = UIImageView(frame: frame)
+        self.imageView.contentMode = .scaleAspectFill
+        self.imageView.clipsToBounds = true
+        super.init()
+        
+        cameraManager.addFrontPreviewObserver(self)
+    }
+    
+    func view() -> UIView {
+        return imageView
+    }
+    
+    deinit {
+        // Observer removed or manager handles it
+    }
+}
+
+extension CameraFrontPreviewView: CameraFrontPreviewObserver {
+    func didOutputFrontFrame(_ pixelBuffer: CVPixelBuffer) {
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return }
+        let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: .up)
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.imageView.image = image
+        }
+    }
+}

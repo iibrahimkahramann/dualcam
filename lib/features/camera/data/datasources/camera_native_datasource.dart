@@ -28,7 +28,7 @@ class CameraNativeDataSource {
   Future<List<String>> stopRecording() async {
     try {
       final result = await _channel.invokeMethod<List<dynamic>>('stopRecording');
-      if (result == null || result.length < 2) {
+      if (result == null || result.isEmpty) {
         throw Exception('Failed to stop recording or invalid result format');
       }
       return result.map((e) => e.toString()).toList();
@@ -40,7 +40,7 @@ class CameraNativeDataSource {
   Future<List<String>> takePhoto() async {
     try {
       final result = await _channel.invokeMethod<List<dynamic>>('takePhoto');
-      if (result == null || result.length < 2) {
+      if (result == null || result.isEmpty) {
         throw Exception('Failed to take photo or invalid result format');
       }
       return result.map((e) => e.toString()).toList();
@@ -134,4 +134,20 @@ class CameraNativeDataSource {
     await _channel.invokeMethod('setScreenBrightness', level);
   }
 
+  Future<bool> isMultiCamSupported() async {
+    try {
+      final res = await _channel.invokeMethod<bool>('isMultiCamSupported');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> setDualCamModeEnabled(bool enabled) async {
+    await _channel.invokeMethod('setDualCamModeEnabled', enabled);
+  }
+
+  Future<void> setWideAngleModeEnabled(bool enabled) async {
+    await _channel.invokeMethod('setWideAngleMode', enabled);
+  }
 }

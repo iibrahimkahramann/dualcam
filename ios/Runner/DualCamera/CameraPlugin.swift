@@ -5,13 +5,11 @@ import AVFoundation
 public class CameraPlugin: NSObject, FlutterPlugin, DualCameraManagerDelegate {
     
     private let channel: FlutterMethodChannel
-    private let cameraManager: DualCameraManager
-    private let videoWriter: DualVideoWriter
+    private let cameraManager = DualCameraManager.shared
+    private let videoWriter = DualVideoWriter()
     
     public init(channel: FlutterMethodChannel, registrar: FlutterPluginRegistrar) {
         self.channel = channel
-        self.cameraManager = DualCameraManager()
-        self.videoWriter = DualVideoWriter()
         super.init()
         
         self.cameraManager.delegate = self
@@ -21,6 +19,9 @@ public class CameraPlugin: NSObject, FlutterPlugin, DualCameraManagerDelegate {
         
         let horizontalFactory = CameraHorizontalPreviewFactory(cameraManager: self.cameraManager)
         registrar.register(horizontalFactory, withId: "two_camera/horizontal_preview")
+        
+        let frontFactory = CameraFrontPreviewFactory(cameraManager: self.cameraManager)
+        registrar.register(frontFactory, withId: "two_camera/front_preview")
     }
     
     public static func register(with registrar: FlutterPluginRegistrar) {
@@ -90,6 +91,26 @@ public class CameraPlugin: NSObject, FlutterPlugin, DualCameraManagerDelegate {
             let res = cameraManager.getAvailableResolutions()
             result(res)
             
+        case "setDualCamModeEnabled":
+            if let enabled = call.arguments as? Bool {
+                cameraManager.isDualCamModeEnabled = enabled
+                try? self.videoWriter.prepare(
+                    width: self.cameraManager.currentCaptureWidth,
+                    height: self.cameraManager.currentCaptureHeight
+                )
+                result(true)
+            } else {
+                result(false)
+            }
+
+        case "setWideAngleMode":
+            if let enabled = call.arguments as? Bool {
+                cameraManager.isWideAngleModeEnabled = enabled
+                result(true)
+            } else {
+                result(false)
+            }
+
         case "setResolution":
             if let args = call.arguments as? [String: Any],
                let width = args["width"] as? Int,
@@ -191,6 +212,9 @@ public class CameraPlugin: NSObject, FlutterPlugin, DualCameraManagerDelegate {
                 }
             }
             
+        case "isMultiCamSupported":
+            result(cameraManager.isMultiCamSupported)
+            
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -198,11 +222,11 @@ public class CameraPlugin: NSObject, FlutterPlugin, DualCameraManagerDelegate {
     
     // MARK: - DualCameraManagerDelegate
     
-    public func didOutput(videoSampleBuffer: CMSampleBuffer) {
+    public func didOutput(videoSampleBuffer: CMSampleBuffer, from position: AVCaptureDevice.Position) {
         if videoWriter.isRecording {
-            videoWriter.writeVideo(sampleBuffer: videoSampleBuffer)
+            videoWriter.writeVideo(sampleBuffer: videoSampleBuffer, from: position)
         }
-        PhotoCaptureManager.shared.processVideoFrame(videoSampleBuffer)
+        PhotoCaptureManager.shared.processVideoFrame(videoSampleBuffer, from: position)
     }
     
     public func didOutput(audioSampleBuffer: CMSampleBuffer) {

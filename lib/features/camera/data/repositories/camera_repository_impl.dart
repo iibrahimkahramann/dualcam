@@ -85,4 +85,19 @@ class CameraRepositoryImpl implements CameraRepository {
   Future<void> setScreenBrightness(double level) {
     return _dataSource.setScreenBrightness(level);
   }
+
+  @override
+  Future<bool> isMultiCamSupported() {
+    return _dataSource.isMultiCamSupported();
+  }
+
+  @override
+  Future<void> setDualCamModeEnabled(bool enabled) async {
+    await _dataSource.setDualCamModeEnabled(enabled);
+  }
+
+  @override
+  Future<void> setWideAngleModeEnabled(bool enabled) async {
+    await _dataSource.setWideAngleModeEnabled(enabled);
+  }
 }

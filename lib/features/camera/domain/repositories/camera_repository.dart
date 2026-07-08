@@ -28,4 +28,7 @@ abstract class CameraRepository {
   Future<void> toggleTorch(bool enabled);
   Future<double> getScreenBrightness();
   Future<void> setScreenBrightness(double level);
+  Future<bool> isMultiCamSupported();
+  Future<void> setDualCamModeEnabled(bool enabled);
+  Future<void> setWideAngleModeEnabled(bool enabled);
 }
