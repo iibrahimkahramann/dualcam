@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:in_app_review/in_app_review.dart';
 
 class OnboardingView extends StatefulWidget {
   const OnboardingView({super.key});
@@ -52,18 +51,8 @@ class _OnboardingViewState extends State<OnboardingView> {
             // Pages — en altta, böylece butonlar üstte kalır
             PageView(
               controller: _controller,
-              onPageChanged: (i) async {
+              onPageChanged: (i) {
                 setState(() => _currentPage = i);
-                if (i == _totalPages - 1) {
-                  try {
-                    final inAppReview = InAppReview.instance;
-                    if (await inAppReview.isAvailable()) {
-                      await inAppReview.requestReview();
-                    }
-                  } catch (e) {
-                    debugPrint('InAppReview error: $e');
-                  }
-                }
               },
               children: [
                 _Page1(isTablet: isTablet, screenSize: size),
