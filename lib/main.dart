@@ -17,8 +17,8 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // ❌ RevenueCat'i burada await ile çağırma — iOS gesture engine'ini bloke eder!
-  // ✅ Splash ekranı gösterilirken arka planda başlatılacak (MyAppState.initState)
+  //  RevenueCat'i burada await ile çağırma — iOS gesture engine'ini bloke eder!
+  //  Splash ekranı gösterilirken arka planda başlatılacak (MyAppState.initState)
 
   runApp(
     EasyLocalization(
@@ -66,7 +66,7 @@ class MyAppState extends ConsumerState<MyApp> {
 
   Future<void> _configureRcsdk() async {
     try {
-      print("Configure Rcsdk *************");
+      debugPrint("Configure Rcsdk *************");
       await Purchases.setLogLevel(LogLevel.debug);
       PurchasesConfiguration? configuration;
 
@@ -95,7 +95,9 @@ class MyAppState extends ConsumerState<MyApp> {
       ref
           .read(isPremiumProvider.notifier)
           .updatePremiumStatus(entitlement?.isActive ?? false);
-      print("Riverpod ile abone kontrolü: ${entitlement?.isActive ?? false}");
+      debugPrint(
+        "Riverpod ile abone kontrolü: ${entitlement?.isActive ?? false}",
+      );
     });
   }
 

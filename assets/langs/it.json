@@ -38,5 +38,18 @@
   "feature_timer": "Timer",
   "feature_grid": "Griglia",
   "feature_zoom": "Zoom",
-  "camera_not_supported": "Anteprima fotocamera non supportata su questa piattaforma."
+  "camera_not_supported": "Anteprima fotocamera non supportata su questa piattaforma.",
+  "error_wide_angle_photo_only": "Disattiva prima la modalità Grandangolo.",
+  "studio_saved_to_gallery": "Salvato nella galleria!",
+  "studio_error": "Errore:",
+  "studio_delete_confirm_title": "Sei sicuro di voler eliminare?",
+  "studio_delete_confirm_content": "Questa azione non può essere annullata.",
+  "studio_cancel": "Annulla",
+  "studio_delete": "Elimina",
+  "studio_preview": "Anteprima",
+  "studio_save_gallery": "Salva in Galleria",
+  "studio_save_watermark_free": "Salva senza filigrana",
+  "studio_title": "Studio",
+  "studio_empty_title": "Il tuo studio è vuoto",
+  "studio_empty_subtitle": "Le tue foto e i tuoi video\nappariranno qui."
 }

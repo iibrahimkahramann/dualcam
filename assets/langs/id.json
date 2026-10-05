@@ -38,5 +38,18 @@
   "feature_timer": "Timer",
   "feature_grid": "Grid",
   "feature_zoom": "Zoom",
-  "camera_not_supported": "Pratinjau kamera tidak didukung di platform ini."
+  "camera_not_supported": "Pratinjau kamera tidak didukung di platform ini.",
+  "error_wide_angle_photo_only": "Harap matikan mode Sudut Lebar terlebih dahulu.",
+  "studio_saved_to_gallery": "Tersimpan ke galeri!",
+  "studio_error": "Kesalahan:",
+  "studio_delete_confirm_title": "Apakah Anda yakin ingin menghapus?",
+  "studio_delete_confirm_content": "Tindakan ini tidak dapat dibatalkan.",
+  "studio_cancel": "Batal",
+  "studio_delete": "Hapus",
+  "studio_preview": "Pratinjau",
+  "studio_save_gallery": "Simpan ke Galeri",
+  "studio_save_watermark_free": "Simpan tanpa Tanda Air",
+  "studio_title": "Studio",
+  "studio_empty_title": "Studio Anda Kosong",
+  "studio_empty_subtitle": "Foto dan video Anda\nakan muncul di sini."
 }

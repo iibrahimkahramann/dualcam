@@ -2,46 +2,53 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class OnboardingView extends StatefulWidget {
+class OnboardingPageNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+  void setPage(int i) => state = i;
+}
+final onboardingPageProvider = NotifierProvider<OnboardingPageNotifier, int>(OnboardingPageNotifier.new);
+
+final onboardingPageControllerProvider = Provider.autoDispose<PageController>((ref) {
+  final controller = PageController();
+  ref.onDispose(() => controller.dispose());
+  return controller;
+});
+
+class OnboardingView extends ConsumerWidget {
   const OnboardingView({super.key});
 
-  @override
-  State<OnboardingView> createState() => _OnboardingViewState();
-}
-
-class _OnboardingViewState extends State<OnboardingView> {
-  final PageController _controller = PageController();
-  int _currentPage = 0;
   static const int _totalPages = 3;
 
-  void _next() {
-    if (_currentPage < _totalPages - 1) {
-      _controller.nextPage(
+  void _next(BuildContext context, WidgetRef ref) {
+    final currentPage = ref.read(onboardingPageProvider);
+    final controller = ref.read(onboardingPageControllerProvider);
+    
+    if (currentPage < _totalPages - 1) {
+      controller.nextPage(
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOut,
       );
     } else {
-      _finish();
+      _finish(context);
     }
   }
 
-  Future<void> _finish() async {
+  Future<void> _finish(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_complete', true);
-    if (mounted) context.go('/home');
+    if (context.mounted) context.go('/home');
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final size = MediaQuery.sizeOf(context);
     final isTablet = size.width > 600;
+    
+    final currentPage = ref.watch(onboardingPageProvider);
+    final controller = ref.watch(onboardingPageControllerProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -50,9 +57,9 @@ class _OnboardingViewState extends State<OnboardingView> {
           children: [
             // Pages — en altta, böylece butonlar üstte kalır
             PageView(
-              controller: _controller,
+              controller: controller,
               onPageChanged: (i) {
-                setState(() => _currentPage = i);
+                ref.read(onboardingPageProvider.notifier).setPage(i);
               },
               children: [
                 _Page1(isTablet: isTablet, screenSize: size),
@@ -66,7 +73,7 @@ class _OnboardingViewState extends State<OnboardingView> {
               top: 8,
               right: 16,
               child: TextButton(
-                onPressed: _finish,
+                onPressed: () => _finish(context),
                 child: Text(
                   'onboarding_skip'.tr(),
                   style: TextStyle(
@@ -90,7 +97,7 @@ class _OnboardingViewState extends State<OnboardingView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(_totalPages, (i) {
-                      final active = i == _currentPage;
+                      final active = i == currentPage;
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
                         margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -112,7 +119,7 @@ class _OnboardingViewState extends State<OnboardingView> {
                     width: double.infinity,
                     height: isTablet ? 64 : 56,
                     child: ElevatedButton(
-                      onPressed: _next,
+                      onPressed: () => _next(context, ref),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black,
                         foregroundColor: Colors.white,
@@ -122,7 +129,7 @@ class _OnboardingViewState extends State<OnboardingView> {
                         elevation: 0,
                       ),
                       child: Text(
-                        _currentPage == _totalPages - 1
+                        currentPage == _totalPages - 1
                             ? 'onboarding_get_started'.tr()
                             : 'onboarding_continue'.tr(),
                         style: TextStyle(

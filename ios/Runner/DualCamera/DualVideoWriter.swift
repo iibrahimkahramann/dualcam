@@ -35,6 +35,10 @@ class DualVideoWriter {
     }
     
     func prepare(width: Int = 1080, height: Int = 1920) throws {
+        let tempDir = FileManager.default.temporaryDirectory
+        verticalUrl = tempDir.appendingPathComponent("vertical_video_\(UUID().uuidString).mp4")
+        horizontalUrl = tempDir.appendingPathComponent("horizontal_video_\(UUID().uuidString).mp4")
+        
         try? FileManager.default.removeItem(at: verticalUrl)
         try? FileManager.default.removeItem(at: horizontalUrl)
         
@@ -133,7 +137,7 @@ class DualVideoWriter {
             let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
             
             if isDualCam {
-                if position == .front {
+                if position != DualCameraManager.shared.currentCameraPosition {
                     if let pb = CMSampleBufferGetImageBuffer(sampleBuffer) {
                         self.latestFrontPixelBuffer = pb
                     }
@@ -252,36 +256,13 @@ class DualVideoWriter {
                 if let err = returnError {
                     completion(.failure(err))
                 } else {
-                    PHPhotoLibrary.requestAuthorization { status in
-                        let isAuthorized: Bool
-                        if #available(iOS 14, *) {
-                            isAuthorized = (status == .authorized || status == .limited)
-                        } else {
-                            isAuthorized = (status == .authorized)
-                        }
-                        
-                        guard isAuthorized else {
-                            completion(.success([self.verticalUrl.path]))
-                            return
-                        }
-                        
-                        PHPhotoLibrary.shared().performChanges({
-                            PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: self.verticalUrl)
-                            if !isDualCam && isWideAngle {
-                                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: self.horizontalUrl)
-                            }
-                        }) { success, error in
-                            DispatchQueue.main.async {
-                                var urls = [self.verticalUrl.path]
-                                if !isDualCam && isWideAngle {
-                                    if FileManager.default.fileExists(atPath: self.horizontalUrl.path) {
-                                        urls.append(self.horizontalUrl.path)
-                                    }
-                                }
-                                completion(.success(urls))
-                            }
+                    var urls = [self.verticalUrl.path]
+                    if !isDualCam && isWideAngle {
+                        if FileManager.default.fileExists(atPath: self.horizontalUrl.path) {
+                            urls.append(self.horizontalUrl.path)
                         }
                     }
+                    completion(.success(urls))
                 }
             }
         }

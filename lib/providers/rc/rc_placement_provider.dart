@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
@@ -17,20 +18,20 @@ Future<void> showPaywallWithPlacement(
         entitlementId,
         offering: offering,
       );
-      print("✅ Paywall result for placement '$placementId': $result");
+      debugPrint("✅ Paywall result for placement '$placementId': $result");
     } else {
       // Placement bulunamadıysa → doğrudan entitlement üzerinden default paywall göster
-      print(
+      debugPrint(
         "⚠️ Placement '$placementId' için offering yok. Default entitlement paywall gösteriliyor...",
       );
 
       final fallbackResult = await RevenueCatUI.presentPaywallIfNeeded(
         entitlementId,
       );
-      print("✅ Default paywall result: $fallbackResult");
+      debugPrint("✅ Default paywall result: $fallbackResult");
     }
   } catch (e, stack) {
-    print("🚨 Hata oluştu: $e\n$stack");
+    debugPrint("🚨 Hata oluştu: $e\n$stack");
   }
 }
 

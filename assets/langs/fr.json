@@ -38,5 +38,18 @@
   "feature_timer": "Minuterie",
   "feature_grid": "Grille",
   "feature_zoom": "Zoom",
-  "camera_not_supported": "Aperçu caméra non pris en charge sur cette plateforme."
+  "camera_not_supported": "Aperçu caméra non pris en charge sur cette plateforme.",
+  "error_wide_angle_photo_only": "Veuillez d'abord désactiver le mode grand angle.",
+  "studio_saved_to_gallery": "Enregistré dans la galerie !",
+  "studio_error": "Erreur :",
+  "studio_delete_confirm_title": "Êtes-vous sûr de vouloir supprimer ?",
+  "studio_delete_confirm_content": "Cette action ne peut pas être annulée.",
+  "studio_cancel": "Annuler",
+  "studio_delete": "Supprimer",
+  "studio_preview": "Aperçu",
+  "studio_save_gallery": "Enregistrer dans la galerie",
+  "studio_save_watermark_free": "Enregistrer sans filigrane",
+  "studio_title": "Studio",
+  "studio_empty_title": "Votre studio est vide",
+  "studio_empty_subtitle": "Vos photos et vidéos\napparaîtront ici."
 }

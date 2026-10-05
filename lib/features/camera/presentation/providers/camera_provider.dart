@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:two_camera/features/studio/presentation/providers/studio_provider.dart';
 import '../../domain/repositories/camera_repository.dart';
 import '../../data/repositories/camera_repository_impl.dart';
 import '../../data/datasources/camera_native_datasource.dart';
@@ -18,14 +20,21 @@ class SuccessBannerNotifier extends Notifier<String?> {
   String? build() => null;
   void set(String? text) => state = text;
 }
-final successBannerProvider = NotifierProvider<SuccessBannerNotifier, String?>(SuccessBannerNotifier.new);
+
+final successBannerProvider = NotifierProvider<SuccessBannerNotifier, String?>(
+  SuccessBannerNotifier.new,
+);
 
 class RecordButtonPressedNotifier extends Notifier<bool> {
   @override
   bool build() => false;
   void set(bool pressed) => state = pressed;
 }
-final recordButtonPressedProvider = NotifierProvider<RecordButtonPressedNotifier, bool>(RecordButtonPressedNotifier.new);
+
+final recordButtonPressedProvider =
+    NotifierProvider<RecordButtonPressedNotifier, bool>(
+      RecordButtonPressedNotifier.new,
+    );
 
 class ShowExposureSliderNotifier extends Notifier<bool> {
   @override
@@ -33,21 +42,32 @@ class ShowExposureSliderNotifier extends Notifier<bool> {
   void toggle() => state = !state;
   void hide() => state = false;
 }
-final showExposureSliderProvider = NotifierProvider<ShowExposureSliderNotifier, bool>(ShowExposureSliderNotifier.new);
+
+final showExposureSliderProvider =
+    NotifierProvider<ShowExposureSliderNotifier, bool>(
+      ShowExposureSliderNotifier.new,
+    );
 
 class TimerDurationNotifier extends Notifier<int> {
   @override
   int build() => 0; // 0 (off), 3, 5, 10
   void set(int duration) => state = duration;
 }
-final timerDurationProvider = NotifierProvider<TimerDurationNotifier, int>(TimerDurationNotifier.new);
+
+final timerDurationProvider = NotifierProvider<TimerDurationNotifier, int>(
+  TimerDurationNotifier.new,
+);
 
 class ActiveTimerCountdownNotifier extends Notifier<int?> {
   @override
   int? build() => null; // null means not counting
   void set(int? seconds) => state = seconds;
 }
-final activeTimerCountdownProvider = NotifierProvider<ActiveTimerCountdownNotifier, int?>(ActiveTimerCountdownNotifier.new);
+
+final activeTimerCountdownProvider =
+    NotifierProvider<ActiveTimerCountdownNotifier, int?>(
+      ActiveTimerCountdownNotifier.new,
+    );
 
 class HdrEnabledNotifier extends Notifier<bool> {
   @override
@@ -58,14 +78,20 @@ class HdrEnabledNotifier extends Notifier<bool> {
     await ref.read(cameraRepositoryProvider).setHDR(newState);
   }
 }
-final hdrEnabledProvider = NotifierProvider<HdrEnabledNotifier, bool>(HdrEnabledNotifier.new);
+
+final hdrEnabledProvider = NotifierProvider<HdrEnabledNotifier, bool>(
+  HdrEnabledNotifier.new,
+);
 
 class GridEnabledNotifier extends Notifier<bool> {
   @override
   bool build() => false;
   void toggle() => state = !state;
 }
-final gridEnabledProvider = NotifierProvider<GridEnabledNotifier, bool>(GridEnabledNotifier.new);
+
+final gridEnabledProvider = NotifierProvider<GridEnabledNotifier, bool>(
+  GridEnabledNotifier.new,
+);
 
 class ExposureValueNotifier extends Notifier<double> {
   @override
@@ -75,7 +101,10 @@ class ExposureValueNotifier extends Notifier<double> {
     await ref.read(cameraRepositoryProvider).setExposure(bias);
   }
 }
-final exposureValueProvider = NotifierProvider<ExposureValueNotifier, double>(ExposureValueNotifier.new);
+
+final exposureValueProvider = NotifierProvider<ExposureValueNotifier, double>(
+  ExposureValueNotifier.new,
+);
 
 class FocusPointNotifier extends Notifier<Offset?> {
   @override
@@ -85,11 +114,17 @@ class FocusPointNotifier extends Notifier<Offset?> {
     // x and y must be between 0.0 and 1.0 (relative to preview size)
     await ref.read(cameraRepositoryProvider).setFocusPoint(point.dx, point.dy);
   }
+
   void clear() => state = null;
 }
-final focusPointProvider = NotifierProvider<FocusPointNotifier, Offset?>(FocusPointNotifier.new);
 
-final resolutionsListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final focusPointProvider = NotifierProvider<FocusPointNotifier, Offset?>(
+  FocusPointNotifier.new,
+);
+
+final resolutionsListProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   return await ref.read(cameraRepositoryProvider).getAvailableResolutions();
 });
 
@@ -98,10 +133,16 @@ class ActiveResolutionNotifier extends Notifier<Map<String, dynamic>?> {
   Map<String, dynamic>? build() => null;
   Future<void> set(Map<String, dynamic> res) async {
     state = res;
-    await ref.read(cameraRepositoryProvider).setResolution(res['width']!, res['height']!, res['fps'] ?? 30);
+    await ref
+        .read(cameraRepositoryProvider)
+        .setResolution(res['width']!, res['height']!, res['fps'] ?? 30);
   }
 }
-final activeResolutionProvider = NotifierProvider<ActiveResolutionNotifier, Map<String, dynamic>?>(ActiveResolutionNotifier.new);
+
+final activeResolutionProvider =
+    NotifierProvider<ActiveResolutionNotifier, Map<String, dynamic>?>(
+      ActiveResolutionNotifier.new,
+    );
 
 final maxZoomProvider = FutureProvider<double>((ref) async {
   return await ref.read(cameraRepositoryProvider).getMaxZoom();
@@ -121,9 +162,10 @@ class DualCamModeNotifier extends Notifier<bool> {
   }
 }
 
-final isDualCamModeEnabledProvider = NotifierProvider<DualCamModeNotifier, bool>(() {
-  return DualCamModeNotifier();
-});
+final isDualCamModeEnabledProvider =
+    NotifierProvider<DualCamModeNotifier, bool>(() {
+      return DualCamModeNotifier();
+    });
 
 class WideAngleModeNotifier extends Notifier<bool> {
   @override
@@ -135,29 +177,36 @@ class WideAngleModeNotifier extends Notifier<bool> {
   }
 }
 
-final isWideAngleModeEnabledProvider = NotifierProvider<WideAngleModeNotifier, bool>(() {
-  return WideAngleModeNotifier();
-});
+final isWideAngleModeEnabledProvider =
+    NotifierProvider<WideAngleModeNotifier, bool>(() {
+      return WideAngleModeNotifier();
+    });
 
 class ZoomLevelNotifier extends Notifier<double> {
   @override
   double build() => 1.0;
-  
+
   Future<void> set(double factor) async {
-    // We optionally clamp to max bounds dynamically in the view before passing here, 
+    // We optionally clamp to max bounds dynamically in the view before passing here,
     // but the native layer also clamps it for safety.
     state = factor;
     await ref.read(cameraRepositoryProvider).setZoom(factor);
   }
 }
-final zoomLevelProvider = NotifierProvider<ZoomLevelNotifier, double>(ZoomLevelNotifier.new);
+
+final zoomLevelProvider = NotifierProvider<ZoomLevelNotifier, double>(
+  ZoomLevelNotifier.new,
+);
 
 class BaseZoomNotifier extends Notifier<double> {
   @override
   double build() => 1.0;
   void set(double val) => state = val;
 }
-final baseZoomProvider = NotifierProvider<BaseZoomNotifier, double>(BaseZoomNotifier.new);
+
+final baseZoomProvider = NotifierProvider<BaseZoomNotifier, double>(
+  BaseZoomNotifier.new,
+);
 
 class RecordingDurationNotifier extends Notifier<int> {
   Timer? _timer;
@@ -179,28 +228,40 @@ class RecordingDurationNotifier extends Notifier<int> {
     state = 0;
   }
 }
-final recordingDurationProvider = NotifierProvider<RecordingDurationNotifier, int>(RecordingDurationNotifier.new);
+
+final recordingDurationProvider =
+    NotifierProvider<RecordingDurationNotifier, int>(
+      RecordingDurationNotifier.new,
+    );
 
 class IsPipSwappedNotifier extends Notifier<bool> {
   @override
   bool build() => false;
-  
-  void toggle() {
+
+  Future<void> toggle() async {
     state = !state;
-    print("PIP SWAPPED STATE: $state");
+    debugPrint("PIP SWAPPED STATE: $state");
+    try {
+      await ref.read(cameraRepositoryProvider).switchCamera();
+    } catch (e) {
+      debugPrint("Error switching camera natively: $e");
+    }
   }
 }
-final isPipSwappedProvider = NotifierProvider<IsPipSwappedNotifier, bool>(IsPipSwappedNotifier.new);
+
+final isPipSwappedProvider = NotifierProvider<IsPipSwappedNotifier, bool>(
+  IsPipSwappedNotifier.new,
+);
 
 class IsFrontCameraNotifier extends Notifier<bool> {
   @override
   bool build() => false;
-  
+
   Future<void> toggle() async {
     // Reset flash safely if switching cameras
     final flashNotifier = ref.read(isFlashEnabledProvider.notifier);
     if (ref.read(isFlashEnabledProvider)) {
-        await flashNotifier.forceOff(); // custom method we'll add
+      await flashNotifier.forceOff(); // custom method we'll add
     }
 
     final newState = !state;
@@ -215,28 +276,33 @@ class IsFrontCameraNotifier extends Notifier<bool> {
     ref.read(exposureValueProvider.notifier).set(0.0);
   }
 }
-final isFrontCameraProvider = NotifierProvider<IsFrontCameraNotifier, bool>(IsFrontCameraNotifier.new);
+
+final isFrontCameraProvider = NotifierProvider<IsFrontCameraNotifier, bool>(
+  IsFrontCameraNotifier.new,
+);
 
 class IsFlashEnabledNotifier extends Notifier<bool> {
   @override
   bool build() => false;
 
   double _previousBrightness = 0.5;
-  
+
   Future<void> toggle() async {
     final newState = !state;
     state = newState;
-    
+
     final repo = ref.read(cameraRepositoryProvider);
     final isFrontCamera = ref.read(isFrontCameraProvider);
-    
+
     if (newState && isFrontCamera) {
-       _previousBrightness = await repo.getScreenBrightness();
-       await repo.setScreenBrightness(1.0); // Full brightness for front camera flash
+      _previousBrightness = await repo.getScreenBrightness();
+      await repo.setScreenBrightness(
+        1.0,
+      ); // Full brightness for front camera flash
     } else if (!newState && isFrontCamera) {
-       await repo.setScreenBrightness(_previousBrightness);
+      await repo.setScreenBrightness(_previousBrightness);
     }
-    
+
     // Always attempt native torch (it ignores safely if hardware doesn't exist)
     await repo.toggleTorch(newState);
   }
@@ -246,12 +312,15 @@ class IsFlashEnabledNotifier extends Notifier<bool> {
     state = false;
     final repo = ref.read(cameraRepositoryProvider);
     if (ref.read(isFrontCameraProvider)) {
-        await repo.setScreenBrightness(_previousBrightness);
+      await repo.setScreenBrightness(_previousBrightness);
     }
     await repo.toggleTorch(false);
   }
 }
-final isFlashEnabledProvider = NotifierProvider<IsFlashEnabledNotifier, bool>(IsFlashEnabledNotifier.new);
+
+final isFlashEnabledProvider = NotifierProvider<IsFlashEnabledNotifier, bool>(
+  IsFlashEnabledNotifier.new,
+);
 
 // The principal Notifier holding the camera state
 final cameraProvider = AsyncNotifierProvider<CameraNotifier, CameraState>(() {
@@ -297,32 +366,38 @@ class CameraNotifier extends AsyncNotifier<CameraState> {
 
     try {
       final files = await _repository.stopRecording();
-      state = AsyncValue.data(current.copyWith(
-        isRecording: false,
-        recordedFiles: files,
-      ));
+
+      final studioRepo = ref.read(studioRepositoryProvider);
+      await studioRepo.saveMediaToStudio(files, true);
+      ref.invalidate(studioMediaProvider);
+
+      state = AsyncValue.data(
+        current.copyWith(isRecording: false, recordedFiles: files),
+      );
       ref.read(recordingDurationProvider.notifier).stop();
     } catch (e) {
-      state = AsyncValue.data(current.copyWith(
-        isRecording: false,
-        errorMessage: e.toString(),
-      ));
+      state = AsyncValue.data(
+        current.copyWith(isRecording: false, errorMessage: e.toString()),
+      );
     }
   }
 
   Future<void> takePhoto() async {
     final current = state.value;
-    if (current == null || !current.isInitialized || current.isRecording) return;
+    if (current == null || !current.isInitialized || current.isRecording) {
+      return;
+    }
 
     try {
       final files = await _repository.takePhoto();
-      state = AsyncValue.data(current.copyWith(
-        recordedFiles: files,
-      ));
+
+      final studioRepo = ref.read(studioRepositoryProvider);
+      await studioRepo.saveMediaToStudio(files, false);
+      ref.invalidate(studioMediaProvider);
+
+      state = AsyncValue.data(current.copyWith(recordedFiles: files));
     } catch (e) {
-      state = AsyncValue.data(current.copyWith(
-        errorMessage: e.toString(),
-      ));
+      state = AsyncValue.data(current.copyWith(errorMessage: e.toString()));
     }
   }
 

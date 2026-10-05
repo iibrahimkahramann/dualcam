@@ -10,6 +10,9 @@ import '../widgets/record_button.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:two_camera/providers/rc/rc_placement_provider.dart';
+import '../../../studio/presentation/views/studio_view.dart';
+import '../../../studio/presentation/providers/studio_provider.dart';
+import 'dart:io';
 
 final GlobalKey dualCameraKey = GlobalKey(debugLabel: 'dual');
 final GlobalKey horizCameraKey = GlobalKey(debugLabel: 'horiz');
@@ -18,7 +21,7 @@ class GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     var paint = Paint()
-      ..color = Colors.white.withOpacity(0.4)
+      ..color = Colors.white.withValues(alpha: 0.4)
       ..strokeWidth = 1;
     canvas.drawLine(
       Offset(size.width / 3, 0),
@@ -253,15 +256,15 @@ class _CameraViewState extends ConsumerState<CameraView> {
                           horizontal: topBarHPadding,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
+                          color: Colors.white.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(25),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             width: 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 4,
                             ),
                           ],
@@ -455,8 +458,9 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                           );
                                           return resolutionsAsync.when(
                                             data: (resolutions) {
-                                              if (resolutions.isEmpty)
+                                              if (resolutions.isEmpty) {
                                                 return const SizedBox();
+                                              }
                                               final displayRes =
                                                   activeRes ??
                                                   resolutions.first;
@@ -527,7 +531,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                                       ),
                                                   decoration: BoxDecoration(
                                                     color: Colors.white
-                                                        .withOpacity(0.2),
+                                                        .withValues(alpha: 0.2),
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                           12,
@@ -618,15 +622,15 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.12),
+                                  color: Colors.white.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(23),
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.15),
+                                    color: Colors.white.withValues(alpha: 0.15),
                                     width: 1,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
+                                      color: Colors.black.withValues(alpha: 0.2),
                                       blurRadius: 4,
                                     ),
                                   ],
@@ -732,7 +736,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: ref.watch(isWideAngleModeEnabledProvider) ? Colors.yellow : Colors.white30,
@@ -779,48 +783,97 @@ class _CameraViewState extends ConsumerState<CameraView> {
                             padding: EdgeInsets.only(right: isTablet ? 60 : 30),
                             child: isRecording
                                 ? const SizedBox()
-                                : (isMultiCamSupported ? GestureDetector(
-                                    onTap: ref.watch(isWideAngleModeEnabledProvider) 
-                                        ? () {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text("Lütfen önce Geniş Açı modunu kapatın."),
-                                                duration: Duration(seconds: 2),
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Studio Button
+                                      Consumer(
+                                        builder: (context, ref, child) {
+                                          final studioMedia = ref.watch(studioMediaProvider);
+                                          final hasMedia = studioMedia.value != null && studioMedia.value!.isNotEmpty;
+                                          final latestMedia = hasMedia ? studioMedia.value!.first : null;
+                                          
+                                          return GestureDetector(
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(builder: (context) => const StudioView()),
+                                              );
+                                            },
+                                            child: Container(
+                                              width: isTablet ? 56 : 48,
+                                              height: isTablet ? 56 : 48,
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(hasMedia ? 10 : (isTablet ? 28 : 24)),
+                                                border: Border.all(
+                                                  color: Colors.white.withValues(alpha: 0.3),
+                                                  width: 1.5,
+                                                ),
+                                                image: hasMedia ? DecorationImage(
+                                                  image: FileImage(
+                                                    latestMedia!.isVideo && latestMedia.thumbnailPath != null 
+                                                        ? File(latestMedia.thumbnailPath!) 
+                                                        : latestMedia.file
+                                                  ),
+                                                  fit: BoxFit.cover,
+                                                ) : null,
                                               ),
-                                            );
-                                          } 
-                                        : () => ref.read(isDualCamModeEnabledProvider.notifier).toggle(),
-                                    child: Opacity(
-                                      opacity: ref.watch(isWideAngleModeEnabledProvider) ? 0.5 : 1.0,
-                                      child: Container(
-                                        width: isTablet ? 64 : 56,
-                                        height: isTablet ? 64 : 56,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.12),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white.withOpacity(0.2),
-                                            width: 1,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(0.2),
-                                              blurRadius: 4,
+                                              child: hasMedia ? null : Icon(
+                                                CupertinoIcons.photo_on_rectangle,
+                                                color: Colors.white,
+                                                size: isTablet ? 28 : 22,
+                                              ),
                                             ),
-                                          ],
-                                        ),
-                                        child: Icon(
-                                          ref.watch(isDualCamModeEnabledProvider)
-                                              ? CupertinoIcons.rectangle_on_rectangle
-                                              : CupertinoIcons.rectangle_on_rectangle_angled,
-                                          color: ref.watch(isDualCamModeEnabledProvider)
-                                              ? Colors.yellow
-                                              : Colors.white,
-                                          size: isTablet ? 32 : 26,
-                                        ),
+                                          );
+                                        },
                                       ),
-                                    ),
-                                  ) : const SizedBox()),
+                                      SizedBox(width: isTablet ? 24 : 16),
+                                      // PiP Button
+                                      (isMultiCamSupported ? GestureDetector(
+                                        onTap: ref.watch(isWideAngleModeEnabledProvider) 
+                                            ? () {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text('error_wide_angle_photo_only'.tr()),
+                                                    duration: Duration(seconds: 2),
+                                                  ),
+                                                );
+                                              } 
+                                            : () => ref.read(isDualCamModeEnabledProvider.notifier).toggle(),
+                                        child: Opacity(
+                                          opacity: ref.watch(isWideAngleModeEnabledProvider) ? 0.5 : 1.0,
+                                          child: Container(
+                                            width: isTablet ? 64 : 56,
+                                            height: isTablet ? 64 : 56,
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(alpha: 0.12),
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: Colors.white.withValues(alpha: 0.2),
+                                                width: 1,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black.withValues(alpha: 0.2),
+                                                  blurRadius: 4,
+                                                ),
+                                              ],
+                                            ),
+                                            child: Icon(
+                                              ref.watch(isDualCamModeEnabledProvider)
+                                                  ? CupertinoIcons.rectangle_on_rectangle
+                                                  : CupertinoIcons.rectangle_on_rectangle_angled,
+                                              color: ref.watch(isDualCamModeEnabledProvider)
+                                                  ? Colors.yellow
+                                                  : Colors.white,
+                                              size: isTablet ? 32 : 26,
+                                            ),
+                                          ),
+                                        ),
+                                      ) : const SizedBox()),
+                                    ],
+                                  ),
                           ),
                         ),
                       ),
@@ -853,15 +906,15 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                       width: isTablet ? 64 : 56,
                                       height: isTablet ? 64 : 56,
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.12),
+                                        color: Colors.white.withValues(alpha: 0.12),
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: Colors.white.withOpacity(0.2),
+                                          color: Colors.white.withValues(alpha: 0.2),
                                           width: 1,
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(
+                                            color: Colors.black.withValues(alpha: 
                                               0.2,
                                             ),
                                             blurRadius: 4,
@@ -952,15 +1005,15 @@ class _CameraViewState extends ConsumerState<CameraView> {
                   child: Container(
                     width: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.12),
+                      color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         width: 1,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 4,
                         ),
                       ],
@@ -989,7 +1042,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
                 child: Text(
                   "$activeTimer",
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 120,
                     fontWeight: FontWeight.bold,
                     shadows: const [

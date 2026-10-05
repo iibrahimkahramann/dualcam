@@ -38,5 +38,18 @@
   "feature_timer": "Timer",
   "feature_grid": "Grade",
   "feature_zoom": "Zoom",
-  "camera_not_supported": "Visualização de câmera não suportada nesta plataforma."
+  "camera_not_supported": "Visualização de câmera não suportada nesta plataforma.",
+  "error_wide_angle_photo_only": "Por favor, desligue primeiro o modo grande angular.",
+  "studio_saved_to_gallery": "Salvo na galeria!",
+  "studio_error": "Erro:",
+  "studio_delete_confirm_title": "Tem certeza que deseja excluir?",
+  "studio_delete_confirm_content": "Esta ação não pode ser desfeita.",
+  "studio_cancel": "Cancelar",
+  "studio_delete": "Excluir",
+  "studio_preview": "Pré-visualização",
+  "studio_save_gallery": "Salvar na Galeria",
+  "studio_save_watermark_free": "Salvar sem marca d'água",
+  "studio_title": "Estúdio",
+  "studio_empty_title": "Seu estúdio está vazio",
+  "studio_empty_subtitle": "Suas fotos e vídeos\naparecerão aqui."
 }

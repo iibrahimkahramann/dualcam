@@ -38,5 +38,18 @@
   "feature_timer": "Timer",
   "feature_grid": "Raster",
   "feature_zoom": "Zoom",
-  "camera_not_supported": "Kameravorschau auf dieser Plattform nicht unterstützt."
+  "camera_not_supported": "Kameravorschau auf dieser Plattform nicht unterstützt.",
+  "error_wide_angle_photo_only": "Bitte deaktivieren Sie zuerst den Weitwinkelmodus.",
+  "studio_saved_to_gallery": "In der Galerie gespeichert!",
+  "studio_error": "Fehler:",
+  "studio_delete_confirm_title": "Möchten Sie wirklich löschen?",
+  "studio_delete_confirm_content": "Diese Aktion kann nicht rückgängig gemacht werden.",
+  "studio_cancel": "Abbrechen",
+  "studio_delete": "Löschen",
+  "studio_preview": "Vorschau",
+  "studio_save_gallery": "In Galerie speichern",
+  "studio_save_watermark_free": "Ohne Wasserzeichen speichern",
+  "studio_title": "Studio",
+  "studio_empty_title": "Dein Studio ist leer",
+  "studio_empty_subtitle": "Deine Fotos und Videos\nwerden hier erscheinen."
 }

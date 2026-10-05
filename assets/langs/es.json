@@ -38,5 +38,18 @@
   "feature_timer": "Temporizador",
   "feature_grid": "Cuadrícula",
   "feature_zoom": "Zoom",
-  "camera_not_supported": "Vista previa de cámara no compatible en esta plataforma."
+  "camera_not_supported": "Vista previa de cámara no compatible en esta plataforma.",
+  "error_wide_angle_photo_only": "Por favor, apague primero el modo de gran angular.",
+  "studio_saved_to_gallery": "¡Guardado en la galería!",
+  "studio_error": "Error:",
+  "studio_delete_confirm_title": "¿Estás seguro de que quieres eliminar?",
+  "studio_delete_confirm_content": "Esta acción no se puede deshacer.",
+  "studio_cancel": "Cancelar",
+  "studio_delete": "Eliminar",
+  "studio_preview": "Vista previa",
+  "studio_save_gallery": "Guardar en la galería",
+  "studio_save_watermark_free": "Guardar sin marca de agua",
+  "studio_title": "Estudio",
+  "studio_empty_title": "Tu estudio está vacío",
+  "studio_empty_subtitle": "Tus fotos y videos\naparecerán aquí."
 }

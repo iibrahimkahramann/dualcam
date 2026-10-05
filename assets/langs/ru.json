@@ -38,5 +38,18 @@
   "feature_timer": "Таймер",
   "feature_grid": "Сетка",
   "feature_zoom": "Зум",
-  "camera_not_supported": "Предварительный просмотр камеры не поддерживается на этой платформе."
+  "camera_not_supported": "Предварительный просмотр камеры не поддерживается на этой платформе.",
+  "error_wide_angle_photo_only": "Пожалуйста, сначала отключите широкоугольный режим.",
+  "studio_saved_to_gallery": "Сохранено в галерею!",
+  "studio_error": "Ошибка:",
+  "studio_delete_confirm_title": "Вы уверены, что хотите удалить?",
+  "studio_delete_confirm_content": "Это действие нельзя отменить.",
+  "studio_cancel": "Отмена",
+  "studio_delete": "Удалить",
+  "studio_preview": "Предпросмотр",
+  "studio_save_gallery": "Сохранить в галерею",
+  "studio_save_watermark_free": "Сохранить без водяного знака",
+  "studio_title": "Студия",
+  "studio_empty_title": "Ваша студия пуста",
+  "studio_empty_subtitle": "Ваши фото и видео\nпоявятся здесь."
 }

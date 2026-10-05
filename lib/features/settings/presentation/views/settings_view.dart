@@ -25,7 +25,7 @@ class SettingsView extends ConsumerWidget {
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverAppBar(
-            backgroundColor: Colors.black.withOpacity(0.5),
+            backgroundColor: Colors.black.withValues(alpha: 0.5),
             surfaceTintColor: Colors.transparent,
             pinned: true,
             centerTitle: true,
@@ -90,7 +90,7 @@ class SettingsView extends ConsumerWidget {
                                     (isPremium
                                             ? const Color(0xFF34C759)
                                             : const Color(0xFF7028E4))
-                                        .withOpacity(0.4),
+                                        .withValues(alpha: 0.4),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               ),
@@ -105,7 +105,7 @@ class SettingsView extends ConsumerWidget {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: Colors.white.withValues(alpha: 0.2),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -137,7 +137,7 @@ class SettingsView extends ConsumerWidget {
                                           ? "settings_premium_thanks".tr()
                                           : "settings_upgrade_subtitle".tr(),
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.9),
+                                        color: Colors.white.withValues(alpha: 0.9),
                                         fontSize: isTablet ? 16 : 14,
                                       ),
                                     ),
@@ -172,10 +172,10 @@ class SettingsView extends ConsumerWidget {
                           filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E1E1E).withOpacity(0.6),
+                              color: const Color(0xFF1E1E1E).withValues(alpha: 0.6),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withValues(alpha: 0.1),
                                 width: 1,
                               ),
                             ),
@@ -242,8 +242,8 @@ class SettingsView extends ConsumerWidget {
   }) {
     return InkWell(
       onTap: onTap,
-      splashColor: Colors.white.withOpacity(0.1),
-      highlightColor: Colors.white.withOpacity(0.05),
+      splashColor: Colors.white.withValues(alpha: 0.1),
+      highlightColor: Colors.white.withValues(alpha: 0.05),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
@@ -251,7 +251,7 @@ class SettingsView extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.15),
+                color: iconColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: iconColor, size: isTablet ? 24 : 20),
@@ -269,7 +269,7 @@ class SettingsView extends ConsumerWidget {
             ),
             Icon(
               CupertinoIcons.chevron_right,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               size: isTablet ? 22 : 18,
             ),
           ],
@@ -282,7 +282,7 @@ class SettingsView extends ConsumerWidget {
     return Container(
       height: 1,
       margin: const EdgeInsets.only(left: 64),
-      color: Colors.white.withOpacity(0.05),
+      color: Colors.white.withValues(alpha: 0.05),
     );
   }
 }

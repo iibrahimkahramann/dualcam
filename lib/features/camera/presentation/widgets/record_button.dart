@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/camera_provider.dart';
-import '../../../../providers/premium/premium_provider.dart';
-import '../../../../providers/rc/rc_placement_provider.dart';
 
 class RecordButton extends ConsumerWidget {
   final bool isRecording;
@@ -34,22 +32,9 @@ class RecordButton extends ConsumerWidget {
     }
   }
 
-  void _handleTap(WidgetRef ref) {
-    final isPremium = ref.read(isPremiumProvider);
-
-    if (isPremium) {
-      // Premium kullanıcı — doğrudan kaydet/çek
-      onTap();
-    } else {
-      // Premium değil — paywall göster
-      showPaywallWithPlacement('default', 'premium');
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isPressed = ref.watch(recordButtonPressedProvider);
-    final isPremium = ref.watch(isPremiumProvider);
     final size = MediaQuery.of(context).size;
     final isTablet = size.width > 600;
 
@@ -63,7 +48,7 @@ class RecordButton extends ConsumerWidget {
       onTapDown: (_) => _handleTapDown(ref),
       onTapUp: (_) => _handleTapUp(ref),
       onTapCancel: () => _handleTapCancel(ref),
-      onTap: () => _handleTap(ref),
+      onTap: onTap,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -100,21 +85,6 @@ class RecordButton extends ConsumerWidget {
               ),
             ),
           ),
-          // Premium değilse kilit ikonu göster
-          if (!isPremium && !isRecording)
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.amber, width: 1.5),
-                ),
-                child: const Icon(Icons.lock, color: Colors.amber, size: 14),
-              ),
-            ),
         ],
       ),
     );

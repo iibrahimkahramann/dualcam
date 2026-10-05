@@ -38,5 +38,18 @@
   "feature_timer": "टाइमर",
   "feature_grid": "ग्रिड",
   "feature_zoom": "ज़ूम",
-  "camera_not_supported": "इस प्लेटफ़ॉर्म पर कैमरा प्रीव्यू समर्थित नहीं है।"
+  "camera_not_supported": "इस प्लेटफ़ॉर्म पर कैमरा प्रीव्यू समर्थित नहीं है।",
+  "error_wide_angle_photo_only": "कृपया पहले वाइड एंगल मोड बंद करें।",
+  "studio_saved_to_gallery": "गैलरी में सहेजा गया!",
+  "studio_error": "त्रुटि:",
+  "studio_delete_confirm_title": "क्या आप वाकई हटाना चाहते हैं?",
+  "studio_delete_confirm_content": "यह कार्रवाई पूर्ववत नहीं की जा सकती।",
+  "studio_cancel": "रद्द करें",
+  "studio_delete": "हटाएं",
+  "studio_preview": "पूर्वावलोकन",
+  "studio_save_gallery": "गैलरी में सहेजें",
+  "studio_save_watermark_free": "वॉटरमार्क के बिना सहेजें",
+  "studio_title": "स्टूडियो",
+  "studio_empty_title": "आपका स्टूडियो खाली है",
+  "studio_empty_subtitle": "आपकी फ़ोटो और वीडियो\nयहां दिखाई देंगे।"
 }

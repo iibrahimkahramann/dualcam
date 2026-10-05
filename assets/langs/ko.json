@@ -38,5 +38,18 @@
   "feature_timer": "타이머",
   "feature_grid": "그리드",
   "feature_zoom": "줌",
-  "camera_not_supported": "이 플랫폼에서는 카메라 미리보기가 지원되지 않습니다."
+  "camera_not_supported": "이 플랫폼에서는 카메라 미리보기가 지원되지 않습니다.",
+  "error_wide_angle_photo_only": "먼저 광각 모드를 끄십시오.",
+  "studio_saved_to_gallery": "갤러리에 저장되었습니다!",
+  "studio_error": "오류:",
+  "studio_delete_confirm_title": "정말 삭제하시겠습니까?",
+  "studio_delete_confirm_content": "이 작업은 취소할 수 없습니다.",
+  "studio_cancel": "취소",
+  "studio_delete": "삭제",
+  "studio_preview": "미리보기",
+  "studio_save_gallery": "갤러리에 저장",
+  "studio_save_watermark_free": "워터마크 없이 저장",
+  "studio_title": "스튜디오",
+  "studio_empty_title": "스튜디오가 비어 있습니다",
+  "studio_empty_subtitle": "사진 및 비디오가\n여기에 표시됩니다."
 }

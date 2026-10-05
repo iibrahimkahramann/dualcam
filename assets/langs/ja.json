@@ -38,5 +38,18 @@
   "feature_timer": "タイマー",
   "feature_grid": "グリッド",
   "feature_zoom": "ズーム",
-  "camera_not_supported": "このプラットフォームではカメラプレビューはサポートされていません。"
+  "camera_not_supported": "このプラットフォームではカメラプレビューはサポートされていません。",
+  "error_wide_angle_photo_only": "最初に広角モードをオフにしてください。",
+  "studio_saved_to_gallery": "ギャラリーに保存しました！",
+  "studio_error": "エラー:",
+  "studio_delete_confirm_title": "本当に削除しますか？",
+  "studio_delete_confirm_content": "この操作は元に戻せません。",
+  "studio_cancel": "キャンセル",
+  "studio_delete": "削除",
+  "studio_preview": "プレビュー",
+  "studio_save_gallery": "ギャラリーに保存",
+  "studio_save_watermark_free": "透かしなしで保存",
+  "studio_title": "スタジオ",
+  "studio_empty_title": "スタジオは空です",
+  "studio_empty_subtitle": "写真とビデオが\nここに表示されます。"
 }

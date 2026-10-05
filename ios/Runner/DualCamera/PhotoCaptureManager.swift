@@ -27,7 +27,7 @@ class PhotoCaptureManager {
         let isWideAngle = DualCameraManager.shared.isWideAngleModeEnabled
         
         if isDualCam {
-            if position == .front {
+            if position != DualCameraManager.shared.currentCameraPosition {
                 if let pb = CMSampleBufferGetImageBuffer(sampleBuffer) {
                     latestFrontPixelBuffer = pb
                 }
@@ -116,43 +116,27 @@ class PhotoCaptureManager {
     }
     
     private func saveImages(vertical: UIImage, horizontal: UIImage?, completion: @escaping (Result<[String], Error>) -> Void) {
-        PHPhotoLibrary.requestAuthorization { status in
-            let isAuthorized: Bool
-            if #available(iOS 14, *) {
-                isAuthorized = (status == .authorized || status == .limited)
-            } else {
-                isAuthorized = (status == .authorized)
-            }
-            
-            guard isAuthorized else {
-                completion(.failure(NSError(domain: "Photo", code: -1, userInfo: [NSLocalizedDescriptionKey: "Photo Library access denied"])))
-                return
-            }
-            
-            var verticalId = ""
-            var horizontalId = ""
-            
-            PHPhotoLibrary.shared().performChanges({
-                let req1 = PHAssetChangeRequest.creationRequestForAsset(from: vertical)
-                verticalId = req1.placeholderForCreatedAsset?.localIdentifier ?? ""
-                
-                if let horizontal = horizontal {
-                    let req2 = PHAssetChangeRequest.creationRequestForAsset(from: horizontal)
-                    horizontalId = req2.placeholderForCreatedAsset?.localIdentifier ?? ""
+        DispatchQueue.global(qos: .userInitiated).async {
+            var urls: [String] = []
+            do {
+                if let data = vertical.jpegData(compressionQuality: 0.95) {
+                    let tempUrl = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("photo_\(UUID().uuidString).jpg")
+                    try data.write(to: tempUrl)
+                    urls.append(tempUrl.path)
                 }
-            }) { success, error in
+                
+                if let horizontal = horizontal, let data = horizontal.jpegData(compressionQuality: 0.95) {
+                    let tempUrl = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("photo_\(UUID().uuidString)_horiz.jpg")
+                    try data.write(to: tempUrl)
+                    urls.append(tempUrl.path)
+                }
+                
                 DispatchQueue.main.async {
-                    if success {
-                        if horizontal != nil {
-                            completion(.success(["Saved Vertical: \(verticalId)", "Saved Horizontal: \(horizontalId)"]))
-                        } else {
-                            completion(.success(["Saved PiP Photo: \(verticalId)"]))
-                        }
-                    } else if let error = error {
-                        completion(.failure(error))
-                    } else {
-                        completion(.failure(NSError(domain: "Photo", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown error saving"])))
-                    }
+                    completion(.success(urls))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
                 }
             }
         }

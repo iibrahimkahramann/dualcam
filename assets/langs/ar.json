@@ -38,5 +38,18 @@
   "feature_timer": "مؤقت",
   "feature_grid": "شبكة",
   "feature_zoom": "تكبير",
-  "camera_not_supported": "معاينة الكاميرا غير مدعومة على هذه المنصة."
+  "camera_not_supported": "معاينة الكاميرا غير مدعومة على هذه المنصة.",
+  "error_wide_angle_photo_only": "يرجى إيقاف وضع الزاوية الواسعة أولاً.",
+  "studio_saved_to_gallery": "تم الحفظ في المعرض!",
+  "studio_error": "خطأ:",
+  "studio_delete_confirm_title": "هل أنت متأكد أنك تريد الحذف؟",
+  "studio_delete_confirm_content": "لا يمكن التراجع عن هذا الإجراء.",
+  "studio_cancel": "إلغاء",
+  "studio_delete": "حذف",
+  "studio_preview": "معاينة",
+  "studio_save_gallery": "حفظ في المعرض",
+  "studio_save_watermark_free": "حفظ بدون علامة مائية",
+  "studio_title": "استوديو",
+  "studio_empty_title": "استوديوهاتك فارغ",
+  "studio_empty_subtitle": "ستظهر صورك ومقاطع الفيديو\nالخاصة بك هنا."
 }

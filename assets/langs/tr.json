@@ -6,16 +6,12 @@
   "video_format": "Video Formatı",
   "select_resolution_fps": "Çözünürlük ve FPS seçin",
   "cancel": "İptal",
-
   "photo_saved": "Fotoğraf galeriye kaydedildi.",
   "video_saved": "Video galeriye kaydedildi.",
-
   "mode_video": "VİDEO",
   "mode_photo": "FOTOĞRAF",
-
   "aspect_vertical": "9:16 (Dikey)",
   "aspect_horizontal": "16:9 (Yatay)",
-
   "settings_title": "Ayarlar",
   "settings_upgrade_title": "PRO'ya Yükselt",
   "settings_upgrade_subtitle": "Tüm premium özelliklerin kilidini aç",
@@ -25,19 +21,15 @@
   "settings_rate_us": "Bizi Oyla",
   "settings_terms": "Kullanım Koşulları",
   "settings_privacy": "Gizlilik Politikası",
-
   "onboarding_skip": "Geç",
   "onboarding_continue": "Devam",
   "onboarding_get_started": "Başla",
-
   "onboarding_1_title": "Tek Çekim,\nİki Video",
   "onboarding_1_subtitle": "Dikey ve yatay videoyu\naynı anda tek çekimde kaydet.",
-
   "onboarding_2_title": "Her Platform İçin\nAnında İçerik",
   "onboarding_2_subtitle": "Kısa içerik için dikey.\nUzun içerik için yatay.\nİkisi de hazır, düzenleme yok.",
   "onboarding_2_tiktok": "TikTok\nve Reels",
   "onboarding_2_youtube": "YouTube",
-
   "onboarding_3_title": "Pro Kamera\nKontrolleri",
   "onboarding_3_subtitle": "4K kayıt, ayarlanabilir FPS,\nflaş, HDR, zamanlayıcı — ihtiyacın\nolan her şey tek uygulamada.",
   "feature_flash": "Flaş",
@@ -46,6 +38,18 @@
   "feature_timer": "Zamanlayıcı",
   "feature_grid": "Izgara",
   "feature_zoom": "Yakınlaştır",
-
-  "camera_not_supported": "Kamera önizlemesi bu platformda desteklenmiyor."
+  "camera_not_supported": "Kamera önizlemesi bu platformda desteklenmiyor.",
+  "error_wide_angle_photo_only": "Lütfen önce Geniş Açı modunu kapatın.",
+  "studio_saved_to_gallery": "Galeriye kaydedildi!",
+  "studio_error": "Hata:",
+  "studio_delete_confirm_title": "Silmek istediğinize emin misiniz?",
+  "studio_delete_confirm_content": "Bu işlem geri alınamaz.",
+  "studio_cancel": "İptal",
+  "studio_delete": "Sil",
+  "studio_preview": "Önizleme",
+  "studio_save_gallery": "Galerime Kaydet",
+  "studio_save_watermark_free": "Filigransız Kaydet",
+  "studio_title": "Stüdyo",
+  "studio_empty_title": "Stüdyonuz Boş",
+  "studio_empty_subtitle": "Çektiğiniz fotoğraf ve videolar\nburada görünecek."
 }
