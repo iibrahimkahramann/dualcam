@@ -19,6 +19,7 @@
   "settings_premium_thanks": "지원해 주셔서 감사합니다!",
   "settings_about": "정보",
   "settings_rate_us": "평가하기",
+  "settings_subscriptions": "구독",
   "settings_terms": "이용 약관",
   "settings_privacy": "개인정보 처리방침",
   "onboarding_skip": "건너뛰기",
@@ -51,5 +52,6 @@
   "studio_save_watermark_free": "워터마크 없이 저장",
   "studio_title": "스튜디오",
   "studio_empty_title": "스튜디오가 비어 있습니다",
-  "studio_empty_subtitle": "사진 및 비디오가\n여기에 표시됩니다."
+  "studio_empty_subtitle": "사진 및 비디오가\n여기에 표시됩니다.",
+  "dual_camera_not_supported": "이 기기는 듀얼 카메라를 지원하지 않습니다."
 }

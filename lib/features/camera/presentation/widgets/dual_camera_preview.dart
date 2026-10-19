@@ -13,6 +13,11 @@ class DualCameraPreview extends StatelessWidget {
         viewType: 'two_camera/preview',
         creationParamsCodec: StandardMessageCodec(),
       );
+    } else if (Platform.isAndroid) {
+      return const AndroidView(
+        viewType: 'two_camera/preview',
+        creationParamsCodec: StandardMessageCodec(),
+      );
     } else {
       return Center(
         child: Text(

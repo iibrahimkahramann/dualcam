@@ -72,6 +72,15 @@ class CameraNativeDataSource {
     }
   }
 
+  Future<double> getMinZoom() async {
+    try {
+      final result = await _channel.invokeMethod<double>('getMinZoom');
+      return result ?? 1.0;
+    } catch (_) {
+      return 1.0;
+    }
+  }
+
   Future<double> getMaxZoom() async {
     try {
       final result = await _channel.invokeMethod<double>('getMaxZoom');

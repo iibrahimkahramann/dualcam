@@ -19,6 +19,7 @@
   "settings_premium_thanks": "Desteğiniz için teşekkürler!",
   "settings_about": "HAKKINDA",
   "settings_rate_us": "Bizi Oyla",
+  "settings_subscriptions": "Abonelikler",
   "settings_terms": "Kullanım Koşulları",
   "settings_privacy": "Gizlilik Politikası",
   "onboarding_skip": "Geç",
@@ -51,5 +52,6 @@
   "studio_save_watermark_free": "Filigransız Kaydet",
   "studio_title": "Stüdyo",
   "studio_empty_title": "Stüdyonuz Boş",
-  "studio_empty_subtitle": "Çektiğiniz fotoğraf ve videolar\nburada görünecek."
+  "studio_empty_subtitle": "Çektiğiniz fotoğraf ve videolar\nburada görünecek.",
+  "dual_camera_not_supported": "Cihazınız çift kamera özelliğini desteklemiyor."
 }

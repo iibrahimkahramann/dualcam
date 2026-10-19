@@ -15,6 +15,14 @@ class CameraFrontPreview extends StatelessWidget {
           creationParamsCodec: StandardMessageCodec(),
         ),
       );
+    } else if (Platform.isAndroid) {
+      return Container(
+        color: Colors.black,
+        child: const AndroidView(
+          viewType: 'two_camera/front_preview',
+          creationParamsCodec: StandardMessageCodec(),
+        ),
+      );
     } else {
       return Container(
         color: Colors.black,

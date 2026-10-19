@@ -24,10 +24,7 @@ class DefaultFirebaseOptions {
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for android - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return android;
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
@@ -59,5 +56,13 @@ class DefaultFirebaseOptions {
     projectId: 'dualcam-038838',
     storageBucket: 'dualcam-038838.firebasestorage.app',
     iosBundleId: 'com.example.twoCamera',
+  );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyCheq-QXhVEsARhkDXp5rtjoV7T9vzKH6E',
+    appId: '1:1034883251402:android:1bd837b6dbe51ce44c8833',
+    messagingSenderId: '1034883251402',
+    projectId: 'dualcam-038838',
+    storageBucket: 'dualcam-038838.firebasestorage.app',
   );
 }

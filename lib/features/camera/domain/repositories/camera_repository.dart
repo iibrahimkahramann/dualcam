@@ -22,6 +22,7 @@ abstract class CameraRepository {
   Future<void> setHDR(bool enabled);
   Future<void> setExposure(double bias);
   Future<void> setFocusPoint(double x, double y);
+  Future<double> getMinZoom();
   Future<double> getMaxZoom();
   Future<void> setZoom(double factor);
   Future<double> switchCamera();

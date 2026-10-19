@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:two_camera/providers/premium/premium_provider.dart';
 import 'package:two_camera/providers/rc/rc_placement_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:in_app_review/in_app_review.dart';
 
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
@@ -185,11 +187,21 @@ class SettingsView extends ConsumerWidget {
                                   title: "settings_rate_us".tr(),
                                   icon: CupertinoIcons.heart_fill,
                                   iconColor: Colors.pinkAccent,
-                                  onTap: () => _openUrl(
-                                    'https://apps.apple.com/app/6762450435?action=write-review',
-                                  ),
+                                  onTap: _rateApp,
                                   isTablet: isTablet,
                                 ),
+                                if (Platform.isAndroid) ...[
+                                  _buildDivider(),
+                                  _buildSettingsItem(
+                                    title: "settings_subscriptions".tr(),
+                                    icon: CupertinoIcons.arrow_2_circlepath_circle_fill,
+                                    iconColor: Colors.amberAccent,
+                                    onTap: () => _openUrl(
+                                      'https://myaccount.google.com/intro/payments-and-subscriptions',
+                                    ),
+                                    isTablet: isTablet,
+                                  ),
+                                ],
                                 _buildDivider(),
                                 _buildSettingsItem(
                                   title: "settings_terms".tr(),
@@ -226,10 +238,40 @@ class SettingsView extends ConsumerWidget {
     );
   }
 
+  Future<void> _rateApp() async {
+    try {
+      final inAppReview = InAppReview.instance;
+      if (await inAppReview.isAvailable()) {
+        await inAppReview.openStoreListing(appStoreId: '6762450435');
+        return;
+      }
+    } catch (_) {}
+
+    if (Platform.isAndroid) {
+      final marketUri = Uri.parse('market://details?id=com.dual.camera.app');
+      final webUri = Uri.parse('https://play.google.com/store/apps/details?id=com.dual.camera.app');
+      try {
+        if (await canLaunchUrl(marketUri)) {
+          await launchUrl(marketUri, mode: LaunchMode.externalApplication);
+          return;
+        }
+      } catch (_) {}
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    } else {
+      _openUrl('https://apps.apple.com/app/6762450435?action=write-review');
+    }
+  }
+
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint("Error opening URL $url: $e");
     }
   }
 

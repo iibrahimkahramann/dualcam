@@ -14,9 +14,14 @@ final videoControllerProvider = FutureProvider.autoDispose
     .family<VideoPlayerController, StudioMediaItem>((ref, item) async {
       if (!item.isVideo) throw Exception("Not a video");
       final controller = VideoPlayerController.file(item.file);
-      await controller.initialize();
-      controller.setLooping(true);
-      controller.play();
+      try {
+        await controller.initialize().timeout(const Duration(seconds: 8));
+        controller.setLooping(true);
+        controller.play();
+      } catch (e) {
+        controller.dispose();
+        rethrow;
+      }
 
       ref.onDispose(() {
         controller.dispose();
@@ -38,9 +43,9 @@ class MediaPreviewView extends ConsumerWidget {
     }
 
     try {
-      final hasAccess = await Gal.hasAccess(toAlbum: true);
+      final hasAccess = await Gal.hasAccess();
       if (!hasAccess) {
-        await Gal.requestAccess(toAlbum: true);
+        await Gal.requestAccess();
       }
 
       if (item.isVideo) {
@@ -92,6 +97,7 @@ class MediaPreviewView extends ConsumerWidget {
     if (confirm == true) {
       final repo = ref.read(studioRepositoryProvider);
       await repo.deleteMedia(item);
+      ref.invalidate(studioMediaProvider);
       if (context.mounted) Navigator.pop(context);
     }
   }
@@ -181,7 +187,7 @@ class MediaPreviewView extends ConsumerWidget {
             child: Center(
               child: currentItem.isVideo && videoAsync != null
                   ? videoAsync.when(
-                      skipLoadingOnReload: false,
+                      skipLoadingOnReload: true,
                       data: (controller) =>
                           _VideoPlayerWithControls(controller: controller),
                       loading: () =>
@@ -283,6 +289,31 @@ class _VideoPlayerWithControls extends StatefulWidget {
 
 class _VideoPlayerWithControlsState extends State<_VideoPlayerWithControls> {
   bool _showControls = true;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onControllerUpdate);
+  }
+
+  @override
+  void didUpdateWidget(covariant _VideoPlayerWithControls oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onControllerUpdate);
+      widget.controller.addListener(_onControllerUpdate);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onControllerUpdate);
+    super.dispose();
+  }
+
+  void _onControllerUpdate() {
+    if (mounted) setState(() {});
+  }
 
   void _togglePlayPause() {
     setState(() {

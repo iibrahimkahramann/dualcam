@@ -165,6 +165,10 @@ public class CameraPlugin: NSObject, FlutterPlugin, DualCameraManagerDelegate {
                 result(FlutterError(code: "INVALID_ARGS", message: "X and Y required", details: nil))
             }
             
+        case "getMinZoom":
+            let minZoom = cameraManager.getMinZoom()
+            result(minZoom)
+
         case "getMaxZoom":
             let maxZoom = cameraManager.getMaxZoom()
             result(maxZoom)

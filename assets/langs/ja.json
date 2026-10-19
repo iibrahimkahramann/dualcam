@@ -19,6 +19,7 @@
   "settings_premium_thanks": "ご協力ありがとうございました！",
   "settings_about": "について",
   "settings_rate_us": "評価する",
+  "settings_subscriptions": "定期購入",
   "settings_terms": "利用規約",
   "settings_privacy": "プライバシーポリシー",
   "onboarding_skip": "スキップ",
@@ -51,5 +52,6 @@
   "studio_save_watermark_free": "透かしなしで保存",
   "studio_title": "スタジオ",
   "studio_empty_title": "スタジオは空です",
-  "studio_empty_subtitle": "写真とビデオが\nここに表示されます。"
+  "studio_empty_subtitle": "写真とビデオが\nここに表示されます。",
+  "dual_camera_not_supported": "お使いのデバイスはデュアルカメラに対応していません。"
 }

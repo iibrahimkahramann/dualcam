@@ -19,6 +19,7 @@
   "settings_premium_thanks": "شكرا لدعمكم!",
   "settings_about": "حول",
   "settings_rate_us": "قيّمنا",
+  "settings_subscriptions": "الاشتراكات",
   "settings_terms": "شروط الاستخدام",
   "settings_privacy": "سياسة الخصوصية",
   "onboarding_skip": "تخطي",
@@ -51,5 +52,6 @@
   "studio_save_watermark_free": "حفظ بدون علامة مائية",
   "studio_title": "استوديو",
   "studio_empty_title": "استوديوهاتك فارغ",
-  "studio_empty_subtitle": "ستظهر صورك ومقاطع الفيديو\nالخاصة بك هنا."
+  "studio_empty_subtitle": "ستظهر صورك ومقاطع الفيديو\nالخاصة بك هنا.",
+  "dual_camera_not_supported": "جهازك لا يدعم خاصية الكاميرا المزدوجة."
 }

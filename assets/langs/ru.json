@@ -19,6 +19,7 @@
   "settings_premium_thanks": "Спасибо за вашу поддержку!",
   "settings_about": "О ПРИЛОЖЕНИИ",
   "settings_rate_us": "Оценить нас",
+  "settings_subscriptions": "Подписки",
   "settings_terms": "Условия использования",
   "settings_privacy": "Политика конфиденциальности",
   "onboarding_skip": "Пропустить",
@@ -51,5 +52,6 @@
   "studio_save_watermark_free": "Сохранить без водяного знака",
   "studio_title": "Студия",
   "studio_empty_title": "Ваша студия пуста",
-  "studio_empty_subtitle": "Ваши фото и видео\nпоявятся здесь."
+  "studio_empty_subtitle": "Ваши фото и видео\nпоявятся здесь.",
+  "dual_camera_not_supported": "Ваше устройство не поддерживает двойную камеру."
 }

@@ -19,6 +19,7 @@
   "settings_premium_thanks": "Terima kasih atas dukungan Anda!",
   "settings_about": "TENTANG",
   "settings_rate_us": "Beri Nilai",
+  "settings_subscriptions": "Langganan",
   "settings_terms": "Syarat Penggunaan",
   "settings_privacy": "Kebijakan Privasi",
   "onboarding_skip": "Lewati",
@@ -51,5 +52,6 @@
   "studio_save_watermark_free": "Simpan tanpa Tanda Air",
   "studio_title": "Studio",
   "studio_empty_title": "Studio Anda Kosong",
-  "studio_empty_subtitle": "Foto dan video Anda\nakan muncul di sini."
+  "studio_empty_subtitle": "Foto dan video Anda\nakan muncul di sini.",
+  "dual_camera_not_supported": "Perangkat Anda tidak mendukung kamera ganda."
 }

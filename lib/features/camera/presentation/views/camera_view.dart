@@ -175,8 +175,9 @@ class _CameraViewState extends ConsumerState<CameraView> {
               },
               onScaleUpdate: (details) {
                 final maxZoom = ref.read(maxZoomProvider).value ?? 5.0;
+                final minZoom = ref.read(minZoomProvider).value ?? 1.0;
                 final base = ref.read(baseZoomProvider);
-                final newZoom = (base * details.scale).clamp(1.0, maxZoom);
+                final newZoom = (base * details.scale).clamp(minZoom, maxZoom);
                 ref.read(zoomLevelProvider.notifier).set(newZoom);
               },
               child: Container(
@@ -603,11 +604,17 @@ class _CameraViewState extends ConsumerState<CameraView> {
                       builder: (context, ref, _) {
                         final maxZoomAsync = ref.watch(maxZoomProvider);
                         final maxZoom = maxZoomAsync.value ?? 1.0;
+                        final minZoomAsync = ref.watch(minZoomProvider);
+                        final minZoom = minZoomAsync.value ?? 1.0;
                         final currentZoom = ref.watch(zoomLevelProvider);
 
-                        if (maxZoom <= 1.1) return const SizedBox();
+                        if (maxZoom <= 1.1 && minZoom >= 0.9) return const SizedBox();
 
-                        List<double> zoomLevels = [1.0];
+                        List<double> zoomLevels = [];
+                        if (minZoom <= 0.6) {
+                          zoomLevels.add(0.5);
+                        }
+                        zoomLevels.add(1.0);
                         if (maxZoom >= 2.0) zoomLevels.add(2.0);
                         if (maxZoom >= 5.0) zoomLevels.add(5.0);
 
@@ -640,7 +647,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                   children: zoomLevels.map((lvl) {
                                     final isActive =
                                         (currentZoom - lvl).abs() <
-                                        0.3; // Threshold for active highlight
+                                        0.25; // Threshold for active highlight
                                     return GestureDetector(
                                       onTap: () => ref
                                           .read(zoomLevelProvider.notifier)
@@ -664,9 +671,11 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                                 ),
                                         ),
                                         child: Text(
-                                          lvl == lvl.toInt()
-                                              ? "${lvl.toInt()}x"
-                                              : "${lvl}x",
+                                          lvl == 0.5
+                                              ? ".5"
+                                              : (lvl == lvl.toInt()
+                                                  ? "${lvl.toInt()}x"
+                                                  : "${lvl}x"),
                                           style: TextStyle(
                                             color: isActive
                                                 ? Colors.black
@@ -830,19 +839,32 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                       ),
                                       SizedBox(width: isTablet ? 24 : 16),
                                       // PiP Button
-                                      (isMultiCamSupported ? GestureDetector(
-                                        onTap: ref.watch(isWideAngleModeEnabledProvider) 
-                                            ? () {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text('error_wide_angle_photo_only'.tr()),
-                                                    duration: Duration(seconds: 2),
-                                                  ),
-                                                );
-                                              } 
-                                            : () => ref.read(isDualCamModeEnabledProvider.notifier).toggle(),
+                                      GestureDetector(
+                                        onTap: () {
+                                          if (!isMultiCamSupported) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('dual_camera_not_supported'.tr()),
+                                                duration: const Duration(seconds: 2),
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                          if (ref.watch(isWideAngleModeEnabledProvider)) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('error_wide_angle_photo_only'.tr()),
+                                                duration: const Duration(seconds: 2),
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                          ref.read(isDualCamModeEnabledProvider.notifier).toggle();
+                                        },
                                         child: Opacity(
-                                          opacity: ref.watch(isWideAngleModeEnabledProvider) ? 0.5 : 1.0,
+                                          opacity: !isMultiCamSupported 
+                                              ? 0.5 
+                                              : (ref.watch(isWideAngleModeEnabledProvider) ? 0.5 : 1.0),
                                           child: Container(
                                             width: isTablet ? 64 : 56,
                                             height: isTablet ? 64 : 56,
@@ -861,17 +883,17 @@ class _CameraViewState extends ConsumerState<CameraView> {
                                               ],
                                             ),
                                             child: Icon(
-                                              ref.watch(isDualCamModeEnabledProvider)
+                                              ref.watch(isDualCamModeEnabledProvider) && isMultiCamSupported
                                                   ? CupertinoIcons.rectangle_on_rectangle
                                                   : CupertinoIcons.rectangle_on_rectangle_angled,
-                                              color: ref.watch(isDualCamModeEnabledProvider)
+                                              color: ref.watch(isDualCamModeEnabledProvider) && isMultiCamSupported
                                                   ? Colors.yellow
                                                   : Colors.white,
                                               size: isTablet ? 32 : 26,
                                             ),
                                           ),
                                         ),
-                                      ) : const SizedBox()),
+                                      ),
                                     ],
                                   ),
                           ),
@@ -1054,7 +1076,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
             ),
 
           // Floating PIP View (Animated)
-          if (ref.watch(isDualCamModeEnabledProvider) || ref.watch(isWideAngleModeEnabledProvider))
+          if ((isMultiCamSupported && ref.watch(isDualCamModeEnabledProvider)) || ref.watch(isWideAngleModeEnabledProvider))
             Consumer(
               builder: (context, ref, child) {
                 final isWideAngle = ref.watch(isWideAngleModeEnabledProvider);

@@ -19,6 +19,7 @@
   "settings_premium_thanks": "Thanks for your support!",
   "settings_about": "ABOUT",
   "settings_rate_us": "Rate Us",
+  "settings_subscriptions": "Subscriptions",
   "settings_terms": "Terms of Use",
   "settings_privacy": "Privacy Policy",
   "onboarding_skip": "Skip",
@@ -51,5 +52,6 @@
   "studio_save_watermark_free": "Save without Watermark",
   "studio_title": "Studio",
   "studio_empty_title": "Your Studio is Empty",
-  "studio_empty_subtitle": "Your photos and videos\nwill appear here."
+  "studio_empty_subtitle": "Your photos and videos\nwill appear here.",
+  "dual_camera_not_supported": "Your device does not support dual camera."
 }

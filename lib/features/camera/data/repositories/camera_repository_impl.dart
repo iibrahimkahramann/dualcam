@@ -57,6 +57,11 @@ class CameraRepositoryImpl implements CameraRepository {
   }
 
   @override
+  Future<double> getMinZoom() {
+    return _dataSource.getMinZoom();
+  }
+
+  @override
   Future<double> getMaxZoom() {
     return _dataSource.getMaxZoom();
   }

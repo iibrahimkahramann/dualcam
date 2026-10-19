@@ -19,6 +19,7 @@
   "settings_premium_thanks": "Danke für deine Unterstützung!",
   "settings_about": "ÜBER",
   "settings_rate_us": "Bewerte uns",
+  "settings_subscriptions": "Abonnements",
   "settings_terms": "Nutzungsbedingungen",
   "settings_privacy": "Datenschutzrichtlinie",
   "onboarding_skip": "Überspringen",
@@ -51,5 +52,6 @@
   "studio_save_watermark_free": "Ohne Wasserzeichen speichern",
   "studio_title": "Studio",
   "studio_empty_title": "Dein Studio ist leer",
-  "studio_empty_subtitle": "Deine Fotos und Videos\nwerden hier erscheinen."
+  "studio_empty_subtitle": "Deine Fotos und Videos\nwerden hier erscheinen.",
+  "dual_camera_not_supported": "Ihr Gerät unterstützt keine Dual-Kamera."
 }

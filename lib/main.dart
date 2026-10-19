@@ -15,7 +15,13 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint("Firebase init error: $e");
+  }
 
   //  RevenueCat'i burada await ile çağırma — iOS gesture engine'ini bloke eder!
   //  Splash ekranı gösterilirken arka planda başlatılacak (MyAppState.initState)
@@ -72,7 +78,7 @@ class MyAppState extends ConsumerState<MyApp> {
 
       if (Platform.isAndroid) {
         configuration = PurchasesConfiguration(
-          "appl_JPDSIFvEMRVEHGdpZfHqWKZBAdx",
+          "goog_XljhawTOMhKeMdYnKerLkHmZylo",
         );
       } else if (Platform.isIOS) {
         configuration = PurchasesConfiguration(

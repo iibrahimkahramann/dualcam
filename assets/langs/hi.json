@@ -19,6 +19,7 @@
   "settings_premium_thanks": "आपके सहयोग के लिए धन्यवाद!",
   "settings_about": "के बारे में",
   "settings_rate_us": "हमें रेट करें",
+  "settings_subscriptions": "सदस्यताएं",
   "settings_terms": "उपयोग की शर्तें",
   "settings_privacy": "गोपनीयता नीति",
   "onboarding_skip": "छोड़ें",
@@ -51,5 +52,6 @@
   "studio_save_watermark_free": "वॉटरमार्क के बिना सहेजें",
   "studio_title": "स्टूडियो",
   "studio_empty_title": "आपका स्टूडियो खाली है",
-  "studio_empty_subtitle": "आपकी फ़ोटो और वीडियो\nयहां दिखाई देंगे।"
+  "studio_empty_subtitle": "आपकी फ़ोटो और वीडियो\nयहां दिखाई देंगे।",
+  "dual_camera_not_supported": "आपका डिवाइस दोहरे कैमरे का समर्थन नहीं करता है।"
 }

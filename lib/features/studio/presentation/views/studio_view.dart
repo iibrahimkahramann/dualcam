@@ -34,6 +34,7 @@ class StudioView extends ConsumerWidget {
             },
           ),
           mediaAsync.when(
+            skipLoadingOnReload: true,
             data: (items) {
               if (items.isEmpty) {
                 return SliverFillRemaining(
@@ -81,9 +82,7 @@ class StudioView extends ConsumerWidget {
                                 return FadeTransition(opacity: animation, child: child);
                               },
                             ),
-                          ).then((_) {
-                            ref.invalidate(studioMediaProvider);
-                          });
+                          );
                         },
                         child: Hero(
                           tag: item.path,

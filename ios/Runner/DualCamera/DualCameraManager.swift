@@ -356,6 +356,12 @@ class DualCameraManager: NSObject {
         device.unlockForConfiguration()
     }
     
+    func getMinZoom() -> Double {
+        guard let device = activeDevice else { return 1.0 }
+        let minZoom = device.minAvailableVideoZoomFactor
+        return Double(minZoom)
+    }
+
     func getMaxZoom() -> Double {
         guard let device = activeDevice else { return 1.0 }
         let maxZoom = device.activeFormat.videoMaxZoomFactor
@@ -364,8 +370,9 @@ class DualCameraManager: NSObject {
     
     func setZoom(factor: CGFloat) throws {
         guard let device = activeDevice else { return }
+        let minZoom = device.minAvailableVideoZoomFactor
         let maxZoom = min(device.activeFormat.videoMaxZoomFactor, 5.0)
-        let safeFactor = max(1.0, min(factor, maxZoom))
+        let safeFactor = max(minZoom, min(factor, maxZoom))
         try device.lockForConfiguration()
         device.videoZoomFactor = safeFactor
         device.unlockForConfiguration()

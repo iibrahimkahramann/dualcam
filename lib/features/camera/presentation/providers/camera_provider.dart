@@ -144,6 +144,10 @@ final activeResolutionProvider =
       ActiveResolutionNotifier.new,
     );
 
+final minZoomProvider = FutureProvider<double>((ref) async {
+  return await ref.read(cameraRepositoryProvider).getMinZoom();
+});
+
 final maxZoomProvider = FutureProvider<double>((ref) async {
   return await ref.read(cameraRepositoryProvider).getMaxZoom();
 });
@@ -154,7 +158,7 @@ final isMultiCamSupportedProvider = FutureProvider<bool>((ref) async {
 
 class DualCamModeNotifier extends Notifier<bool> {
   @override
-  bool build() => true; // Default to true (PiP Mode enabled) if supported
+  bool build() => false; // Default to single camera mode on startup
 
   void toggle() {
     state = !state;
@@ -270,6 +274,7 @@ class IsFrontCameraNotifier extends Notifier<bool> {
     // Reset configuration limits for the new camera
     ref.invalidate(resolutionsListProvider);
     ref.invalidate(maxZoomProvider);
+    ref.invalidate(minZoomProvider);
     // Reset control values visually inside Dart bounds
     ref.read(zoomLevelProvider.notifier).set(1.0);
     ref.read(baseZoomProvider.notifier).set(1.0);
@@ -340,6 +345,9 @@ class CameraNotifier extends AsyncNotifier<CameraState> {
     state = const AsyncValue.loading();
     try {
       await _repository.initialize();
+      ref.invalidate(isMultiCamSupportedProvider);
+      ref.invalidate(maxZoomProvider);
+      ref.invalidate(minZoomProvider);
       state = AsyncValue.data(const CameraState(isInitialized: true));
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
