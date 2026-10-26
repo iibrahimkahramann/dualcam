@@ -49,7 +49,6 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
     private var secondaryCamera: Camera? = null
 
     private var primaryPreviewView: PreviewView? = null
-    private var secondaryPreviewView: PreviewView? = null
     private var frontPreviewView: PreviewView? = null
 
     private var primaryImageCapture: ImageCapture? = null
@@ -163,6 +162,8 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
         if (isMultiCamSupported && isDualCamModeEnabled) {
             startConcurrentCameras(provider)
         } else {
+            secondaryCamera = null
+            secondaryImageCapture = null
             startSingleCamera(provider)
         }
 
@@ -213,53 +214,89 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
         }
     }
 
+    /**
+     * Binds back + front cameras concurrently.
+     *
+     * Concurrent camera hardware only guarantees a limited number of streams per camera,
+     * so we try progressively lighter use-case combinations. The last attempt is
+     * Preview + Preview, which every concurrent-capable device must support — this
+     * guarantees both previews are live (back in primaryPreviewView, front in frontPreviewView).
+     */
     private fun startConcurrentCameras(provider: ProcessCameraProvider) {
-        try {
-            val backSelector = CameraSelector.DEFAULT_BACK_CAMERA
-            val frontSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+        // attempt index -> (back has ImageCapture, back has VideoCapture, front has ImageCapture)
+        val attempts = listOf(
+            Triple(true, true, true),
+            Triple(false, true, true),
+            Triple(true, false, true),
+            Triple(false, true, false),
+            Triple(true, false, false),
+            Triple(false, false, false)
+        )
 
-            val backPreview = Preview.Builder().build()
-            val frontPreview = Preview.Builder().build()
+        for ((backImage, backVideo, frontImage) in attempts) {
+            try {
+                provider.unbindAll()
 
-            primaryPreviewView?.let { backPreview.setSurfaceProvider(it.surfaceProvider) }
-            secondaryPreviewView?.let { frontPreview.setSurfaceProvider(it.surfaceProvider) }
-            frontPreviewView?.let { frontPreview.setSurfaceProvider(it.surfaceProvider) }
+                val backPreview = Preview.Builder().build()
+                val frontPreview = Preview.Builder().build()
+                primaryPreviewView?.let { backPreview.setSurfaceProvider(it.surfaceProvider) }
+                frontPreviewView?.let { frontPreview.setSurfaceProvider(it.surfaceProvider) }
 
-            primaryImageCapture = ImageCapture.Builder().build()
-            secondaryImageCapture = ImageCapture.Builder().build()
+                val backImageCapture = if (backImage) ImageCapture.Builder().build() else null
+                val frontImageCapture = if (frontImage) ImageCapture.Builder().build() else null
+                val backVideoCapture = if (backVideo) {
+                    VideoCapture.withOutput(
+                        Recorder.Builder()
+                            .setQualitySelector(QualitySelector.from(Quality.HD))
+                            .build()
+                    )
+                } else null
 
-            val recorder = Recorder.Builder()
-                .setQualitySelector(QualitySelector.from(Quality.HD))
-                .build()
-            videoCapture = VideoCapture.withOutput(recorder)
+                val backGroup = UseCaseGroup.Builder().addUseCase(backPreview).apply {
+                    backImageCapture?.let { addUseCase(it) }
+                    backVideoCapture?.let { addUseCase(it) }
+                }.build()
 
-            val backGroup = UseCaseGroup.Builder()
-                .addUseCase(backPreview)
-                .addUseCase(primaryImageCapture!!)
-                .addUseCase(videoCapture!!)
-                .build()
+                val frontGroup = UseCaseGroup.Builder().addUseCase(frontPreview).apply {
+                    frontImageCapture?.let { addUseCase(it) }
+                }.build()
 
-            val frontGroup = UseCaseGroup.Builder()
-                .addUseCase(frontPreview)
-                .addUseCase(secondaryImageCapture!!)
-                .build()
+                val concurrentCamera = provider.bindToLifecycle(
+                    listOf(
+                        SingleCameraConfig(CameraSelector.DEFAULT_BACK_CAMERA, backGroup, lifecycleOwner),
+                        SingleCameraConfig(CameraSelector.DEFAULT_FRONT_CAMERA, frontGroup, lifecycleOwner)
+                    )
+                )
 
-            val backConfig = SingleCameraConfig(backSelector, backGroup, lifecycleOwner)
-            val frontConfig = SingleCameraConfig(frontSelector, frontGroup, lifecycleOwner)
+                primaryCamera = concurrentCamera.cameras.firstOrNull {
+                    it.cameraInfo.lensFacing == CameraSelector.LENS_FACING_BACK
+                }
+                secondaryCamera = concurrentCamera.cameras.firstOrNull {
+                    it.cameraInfo.lensFacing == CameraSelector.LENS_FACING_FRONT
+                }
+                primaryImageCapture = backImageCapture
+                secondaryImageCapture = frontImageCapture
+                videoCapture = backVideoCapture
 
-            val concurrentCamera = provider.bindToLifecycle(listOf(backConfig, frontConfig))
-            primaryCamera = concurrentCamera.cameras.firstOrNull {
-                it.cameraInfo.lensFacing == CameraSelector.LENS_FACING_BACK
+                android.util.Log.d(
+                    "DualCamDebug",
+                    "Concurrent bind OK (backImage=$backImage, backVideo=$backVideo, frontImage=$frontImage)"
+                )
+                return
+            } catch (e: Exception) {
+                android.util.Log.w(
+                    "DualCamDebug",
+                    "Concurrent bind failed (backImage=$backImage, backVideo=$backVideo, frontImage=$frontImage): ${e.message}"
+                )
             }
-            secondaryCamera = concurrentCamera.cameras.firstOrNull {
-                it.cameraInfo.lensFacing == CameraSelector.LENS_FACING_FRONT
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            // Fallback to single camera if concurrent binding fails on specific hardware
-            isMultiCamSupported = false
-            startSingleCamera(provider)
         }
+
+        // Even Preview + Preview failed: device does not really support concurrent cameras.
+        try { provider.unbindAll() } catch (_: Exception) {}
+        secondaryCamera = null
+        secondaryImageCapture = null
+        isMultiCamSupported = false
+        startSingleCamera(provider)
     }
 
     fun stop() {
@@ -272,41 +309,42 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
         isRunning = false
     }
 
-    fun getPrimaryPreviewView(ctx: Context): PreviewView {
-        if (primaryPreviewView == null) {
-            primaryPreviewView = PreviewView(ctx).apply {
-                implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                scaleType = PreviewView.ScaleType.FILL_CENTER
-            }
-            start()
-        }
-        return primaryPreviewView!!
-    }
+    /** Existing views without any side effects (used by frame-copy previews). */
+    val currentPrimaryPreviewView: PreviewView? get() = primaryPreviewView
+    val currentFrontPreviewView: PreviewView? get() = frontPreviewView
 
-    fun getSecondaryPreviewView(ctx: Context): PreviewView {
-        if (secondaryPreviewView == null) {
-            secondaryPreviewView = PreviewView(ctx).apply {
-                implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                scaleType = PreviewView.ScaleType.FILL_CENTER
-            }
-            start()
+    fun getPrimaryPreviewView(ctx: Context): PreviewView {
+        primaryPreviewView?.let { return it }
+        val view = PreviewView(ctx).apply {
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            scaleType = PreviewView.ScaleType.FILL_CENTER
         }
-        return secondaryPreviewView!!
+        primaryPreviewView = view
+        start()
+        return view
     }
 
     fun getFrontPreviewView(ctx: Context): PreviewView {
-        if (frontPreviewView == null) {
-            frontPreviewView = PreviewView(ctx).apply {
-                implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                scaleType = PreviewView.ScaleType.FILL_CENTER
-            }
-            start()
+        frontPreviewView?.let { return it }
+        val view = PreviewView(ctx).apply {
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            scaleType = PreviewView.ScaleType.FILL_CENTER
         }
-        return frontPreviewView!!
+        frontPreviewView = view
+        start()
+        return view
     }
 
     fun switchCamera(callback: (Result<Double>) -> Unit) {
         isUltraWideLensSelected = false
+
+        // In concurrent dual mode both cameras are already live; swapping the PiP is
+        // purely a UI change, so do NOT rebind (rebinding would restart both cameras).
+        if (isMultiCamSupported && isDualCamModeEnabled && secondaryCamera != null) {
+            callback(Result.success(getMaxZoom()))
+            return
+        }
+
         currentLensFacing = if (currentLensFacing == CameraSelector.LENS_FACING_BACK) {
             CameraSelector.LENS_FACING_FRONT
         } else {
@@ -466,7 +504,11 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
     }
 
     fun startRecording() {
-        val vc = videoCapture ?: return
+        val vc = videoCapture
+        if (vc == null) {
+            currentVideoFile = null
+            return
+        }
         val outputFile = File(context.cacheDir, "video_" + java.util.UUID.randomUUID().toString() + ".mp4")
         currentVideoFile = outputFile
 

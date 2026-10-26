@@ -14,14 +14,20 @@ import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory
 
+/** Detach a shared (singleton) native view from a previous, disposed platform-view wrapper. */
+internal fun View.detachFromParent(): View {
+    (parent as? ViewGroup)?.removeView(this)
+    return this
+}
+
 class CameraPreviewFactory(private val cameraManager: DualCameraManager) :
     PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
+        // Resolve once. Flutter calls getView() many times; it must always return the same view.
+        val view = cameraManager.getPrimaryPreviewView(context).detachFromParent()
         return object : PlatformView {
-            override fun getView(): View {
-                return cameraManager.getPrimaryPreviewView(context)
-            }
+            override fun getView(): View = view
 
             override fun dispose() {}
         }
@@ -63,7 +69,11 @@ class HorizontalPreviewView(context: Context, private val cameraManager: DualCam
     }
 
     private fun captureFrame() {
-        val preview = cameraManager.getPrimaryPreviewView(context)
+        val preview = if (cameraManager.isDualCamModeEnabled && cameraManager.isMultiCamSupported) {
+            cameraManager.currentFrontPreviewView
+        } else {
+            cameraManager.currentPrimaryPreviewView
+        }
         val textureView = findTextureView(preview) ?: return
         if (!textureView.isAvailable) return
 
@@ -141,10 +151,9 @@ class CameraFrontPreviewFactory(private val cameraManager: DualCameraManager) :
     PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
+        val view = cameraManager.getFrontPreviewView(context).detachFromParent()
         return object : PlatformView {
-            override fun getView(): View {
-                return cameraManager.getFrontPreviewView(context)
-            }
+            override fun getView(): View = view
 
             override fun dispose() {}
         }

@@ -16,6 +16,7 @@ import 'dart:io';
 
 final GlobalKey dualCameraKey = GlobalKey(debugLabel: 'dual');
 final GlobalKey horizCameraKey = GlobalKey(debugLabel: 'horiz');
+final GlobalKey frontCameraKey = GlobalKey(debugLabel: 'front');
 
 class GridPainter extends CustomPainter {
   @override
@@ -186,8 +187,17 @@ class _CameraViewState extends ConsumerState<CameraView> {
                   final isDualMode = isMultiCamSupported && ref.watch(isDualCamModeEnabledProvider);
                   final showFrontCamera = isDualMode ? isPipSwapped : ref.watch(isFrontCameraProvider);
                   
-                  if (isMultiCamSupported && showFrontCamera) {
-                    return const CameraFrontPreview();
+                  // Android: the separate front PreviewView is only fed in concurrent dual mode.
+                  // In single-camera mode the selected lens (front or back) renders into the
+                  // primary preview, so it must stay on DualCameraPreview.
+                  final useFrontView = isMultiCamSupported &&
+                      showFrontCamera &&
+                      (!Platform.isAndroid || isDualMode);
+
+                  if (useFrontView) {
+                    return Platform.isAndroid
+                        ? CameraFrontPreview(key: frontCameraKey)
+                        : const CameraFrontPreview();
                   } else {
                     return DualCameraPreview(key: dualCameraKey);
                   }
@@ -1134,10 +1144,14 @@ class _CameraViewState extends ConsumerState<CameraView> {
                         children: [
                           if (isWideAngle)
                               CameraHorizontalPreview(key: horizCameraKey)
+                          else if (isPipSwapped)
+                              DualCameraPreview(key: dualCameraKey)
+                          else if (Platform.isAndroid)
+                              // Android: real front camera PreviewView fed by CameraX ConcurrentCamera
+                              CameraFrontPreview(key: frontCameraKey)
                           else
-                              isPipSwapped
-                                  ? DualCameraPreview(key: dualCameraKey)
-                                  : CameraHorizontalPreview(key: horizCameraKey),
+                              // iOS: horizontal preview already receives front frames in dual mode
+                              CameraHorizontalPreview(key: horizCameraKey),
                         ],
                       ),
                     ),
