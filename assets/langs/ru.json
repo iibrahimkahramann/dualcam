@@ -53,5 +53,16 @@
   "studio_title": "Студия",
   "studio_empty_title": "Ваша студия пуста",
   "studio_empty_subtitle": "Ваши фото и видео\nпоявятся здесь.",
-  "dual_camera_not_supported": "Ваше устройство не поддерживает двойную камеру."
+  "dual_camera_not_supported": "Ваше устройство не поддерживает двойную камеру.",
+  "wide_angle": "Широкий угол",
+  "editor_undo": "Отменить",
+  "editor_redo": "Повторить",
+  "editor_done": "Готово",
+  "editor_remove": "Удалить",
+  "editor_text": "Текст",
+  "editor_text_hint": "Напишите что-нибудь...",
+  "editor_paint": "Рисунок",
+  "editor_crop_rotate": "Обрезка/Поворот",
+  "editor_filters": "Фильтры",
+  "editor_blur": "Размытие"
 }

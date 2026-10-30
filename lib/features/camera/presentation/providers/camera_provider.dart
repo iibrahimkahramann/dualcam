@@ -257,6 +257,25 @@ final isPipSwappedProvider = NotifierProvider<IsPipSwappedNotifier, bool>(
   IsPipSwappedNotifier.new,
 );
 
+/// 0: topLeft, 1: topRight (default), 2: bottomLeft, 3: bottomRight
+class PipCornerNotifier extends Notifier<int> {
+  @override
+  int build() => 1;
+
+  Future<void> setCorner(int corner) async {
+    state = corner;
+    try {
+      await ref.read(cameraRepositoryProvider).setPipCorner(corner);
+    } catch (e) {
+      debugPrint("Error setting PiP corner natively: $e");
+    }
+  }
+}
+
+final pipCornerProvider = NotifierProvider<PipCornerNotifier, int>(
+  PipCornerNotifier.new,
+);
+
 class IsFrontCameraNotifier extends Notifier<bool> {
   @override
   bool build() => false;

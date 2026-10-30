@@ -53,5 +53,16 @@
   "studio_title": "استوديو",
   "studio_empty_title": "استوديوهاتك فارغ",
   "studio_empty_subtitle": "ستظهر صورك ومقاطع الفيديو\nالخاصة بك هنا.",
-  "dual_camera_not_supported": "جهازك لا يدعم خاصية الكاميرا المزدوجة."
+  "dual_camera_not_supported": "جهازك لا يدعم خاصية الكاميرا المزدوجة.",
+  "wide_angle": "زاوية واسعة",
+  "editor_undo": "تراجع",
+  "editor_redo": "إعادة",
+  "editor_done": "تم",
+  "editor_remove": "إزالة",
+  "editor_text": "نص",
+  "editor_text_hint": "اكتب شيئاً...",
+  "editor_paint": "رسم",
+  "editor_crop_rotate": "قص/تدوير",
+  "editor_filters": "فلاتر",
+  "editor_blur": "تمويه"
 }

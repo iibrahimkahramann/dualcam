@@ -53,5 +53,16 @@
   "studio_title": "Studio",
   "studio_empty_title": "Studio Anda Kosong",
   "studio_empty_subtitle": "Foto dan video Anda\nakan muncul di sini.",
-  "dual_camera_not_supported": "Perangkat Anda tidak mendukung kamera ganda."
+  "dual_camera_not_supported": "Perangkat Anda tidak mendukung kamera ganda.",
+  "wide_angle": "Sudut Lebar",
+  "editor_undo": "Urungkan",
+  "editor_redo": "Ulangi",
+  "editor_done": "Selesai",
+  "editor_remove": "Hapus",
+  "editor_text": "Teks",
+  "editor_text_hint": "Tulis sesuatu...",
+  "editor_paint": "Gambar",
+  "editor_crop_rotate": "Potong/Putar",
+  "editor_filters": "Filter",
+  "editor_blur": "Buram"
 }

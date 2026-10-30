@@ -222,6 +222,12 @@ class CameraPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, PluginRegi
                 result.success(true)
             }
 
+            "setPipCorner" -> {
+                val corner = call.arguments as? Int ?: 1
+                manager.pipCornerIndex = corner
+                result.success(true)
+            }
+
             "setResolution" -> {
                 val width = call.argument<Int>("width") ?: 1080
                 val height = call.argument<Int>("height") ?: 1920

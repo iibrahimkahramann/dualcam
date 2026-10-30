@@ -53,5 +53,16 @@
   "studio_title": "スタジオ",
   "studio_empty_title": "スタジオは空です",
   "studio_empty_subtitle": "写真とビデオが\nここに表示されます。",
-  "dual_camera_not_supported": "お使いのデバイスはデュアルカメラに対応していません。"
+  "dual_camera_not_supported": "お使いのデバイスはデュアルカメラに対応していません。",
+  "wide_angle": "広角",
+  "editor_undo": "元に戻す",
+  "editor_redo": "やり直す",
+  "editor_done": "完了",
+  "editor_remove": "削除",
+  "editor_text": "テキスト",
+  "editor_text_hint": "テキストを入力...",
+  "editor_paint": "ペイント",
+  "editor_crop_rotate": "切り抜き/回転",
+  "editor_filters": "フィルター",
+  "editor_blur": "ぼかし"
 }

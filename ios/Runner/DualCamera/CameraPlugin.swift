@@ -106,6 +106,18 @@ public class CameraPlugin: NSObject, FlutterPlugin, DualCameraManagerDelegate {
         case "setWideAngleMode":
             if let enabled = call.arguments as? Bool {
                 cameraManager.isWideAngleModeEnabled = enabled
+                try? self.videoWriter.prepare(
+                    width: self.cameraManager.currentCaptureWidth,
+                    height: self.cameraManager.currentCaptureHeight
+                )
+                result(true)
+            } else {
+                result(false)
+            }
+
+        case "setPipCorner":
+            if let corner = call.arguments as? Int {
+                cameraManager.pipCornerIndex = corner
                 result(true)
             } else {
                 result(false)
@@ -229,6 +241,8 @@ public class CameraPlugin: NSObject, FlutterPlugin, DualCameraManagerDelegate {
     public func didOutput(videoSampleBuffer: CMSampleBuffer, from position: AVCaptureDevice.Position) {
         if videoWriter.isRecording {
             videoWriter.writeVideo(sampleBuffer: videoSampleBuffer, from: position)
+        } else {
+            videoWriter.cacheSecondaryFrameIfNeeded(sampleBuffer: videoSampleBuffer, from: position)
         }
         PhotoCaptureManager.shared.processVideoFrame(videoSampleBuffer, from: position)
     }

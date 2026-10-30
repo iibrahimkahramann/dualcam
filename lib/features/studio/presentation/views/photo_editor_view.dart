@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 import '../../domain/models/studio_media_item.dart';
 import '../providers/studio_provider.dart';
@@ -33,22 +34,28 @@ class PhotoEditorView extends ConsumerWidget {
             unselectedItemColor: Colors.white54,
           ),
         ),
-        i18n: const I18n(
-          cancel: 'İptal',
-          undo: 'Geri Al',
-          redo: 'Yinele',
-          done: 'Bitti',
-          remove: 'Kaldır',
+        i18n: I18n(
+          cancel: 'cancel'.tr(),
+          undo: 'editor_undo'.tr(),
+          redo: 'editor_redo'.tr(),
+          done: 'editor_done'.tr(),
+          remove: 'editor_remove'.tr(),
           textEditor: I18nTextEditor(
-            bottomNavigationBarText: 'Metin',
-            inputHintText: 'Bir şeyler yazın...',
+            bottomNavigationBarText: 'editor_text'.tr(),
+            inputHintText: 'editor_text_hint'.tr(),
           ),
-          paintEditor: I18nPaintEditor(bottomNavigationBarText: 'Çizim'),
+          paintEditor: I18nPaintEditor(
+            bottomNavigationBarText: 'editor_paint'.tr(),
+          ),
           cropRotateEditor: I18nCropRotateEditor(
-            bottomNavigationBarText: 'Kırp/Döndür',
+            bottomNavigationBarText: 'editor_crop_rotate'.tr(),
           ),
-          filterEditor: I18nFilterEditor(bottomNavigationBarText: 'Filtreler'),
-          blurEditor: I18nBlurEditor(bottomNavigationBarText: 'Bulanıklık'),
+          filterEditor: I18nFilterEditor(
+            bottomNavigationBarText: 'editor_filters'.tr(),
+          ),
+          blurEditor: I18nBlurEditor(
+            bottomNavigationBarText: 'editor_blur'.tr(),
+          ),
         ),
       ),
       callbacks: ProImageEditorCallbacks(

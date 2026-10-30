@@ -15,13 +15,18 @@ class DualVideoWriter {
     private var verticalPixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
     private var horizontalPixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
     
-    private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+    private let ciContext = CIContext(options: [
+        .useSoftwareRenderer: false,
+        .cacheIntermediates: false
+    ])
     private var pixelBufferPool: CVPixelBufferPool?
     private var compositeBufferPool: CVPixelBufferPool?
     
     private(set) var isRecording = false
     private var hasStartedWriting = false
-    private let writerQueue = DispatchQueue(label: "com.two_camera.writerQueue")
+    private let writerQueue = DispatchQueue(label: "com.two_camera.writerQueue", qos: .userInitiated)
+    private let frameGuardLock = NSLock()
+    private var isProcessingVideoFrame = false
     
     private var verticalUrl: URL
     private var horizontalUrl: URL
@@ -35,6 +40,23 @@ class DualVideoWriter {
     }
     
     func prepare(width: Int = 1080, height: Int = 1920) throws {
+        writerQueue.async {
+            try? self.prepareOnQueue(width: width, height: height)
+        }
+    }
+
+    private func prepareOnQueue(width: Int = 1080, height: Int = 1920) throws {
+        if verticalWriter?.status == .writing {
+            verticalWriter?.cancelWriting()
+        }
+        if horizontalWriter?.status == .writing {
+            horizontalWriter?.cancelWriting()
+        }
+        verticalWriter = nil
+        horizontalWriter = nil
+        compositeBufferPool = nil
+        pixelBufferPool = nil
+
         let tempDir = FileManager.default.temporaryDirectory
         verticalUrl = tempDir.appendingPathComponent("vertical_video_\(UUID().uuidString).mp4")
         horizontalUrl = tempDir.appendingPathComponent("horizontal_video_\(UUID().uuidString).mp4")
@@ -55,7 +77,9 @@ class DualVideoWriter {
         let vSourcePixelBufferAttributes: [String: Any] = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
             kCVPixelBufferWidthKey as String: width,
-            kCVPixelBufferHeightKey as String: height
+            kCVPixelBufferHeightKey as String: height,
+            kCVPixelBufferIOSurfacePropertiesKey as String: [:],
+            kCVPixelBufferMetalCompatibilityKey as String: true
         ]
         verticalPixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(
             assetWriterInput: verticalVideoInput!,
@@ -100,7 +124,9 @@ class DualVideoWriter {
             let hSourcePixelBufferAttributes: [String: Any] = [
                 kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
                 kCVPixelBufferWidthKey as String: hWidth,
-                kCVPixelBufferHeightKey as String: hHeight
+                kCVPixelBufferHeightKey as String: hHeight,
+                kCVPixelBufferIOSurfacePropertiesKey as String: [:],
+                kCVPixelBufferMetalCompatibilityKey as String: true
             ]
             horizontalPixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(
                 assetWriterInput: horizontalVideoInput!,
@@ -119,17 +145,70 @@ class DualVideoWriter {
             CVPixelBufferPoolCreate(kCFAllocatorDefault, nil, hSourcePixelBufferAttributes as CFDictionary, &pixelBufferPool)
         }
         
+        // Pre-start AVAssetWriter so hardware VideoToolbox H.264 encoder and IOSurface pools
+        // are initialized BEFORE the user taps Record (eliminates first-frame recording stutter).
+        verticalWriter?.startWriting()
+        if !isDualCam && isWideAngle {
+            horizontalWriter?.startWriting()
+        }
+
+        // Pre-warm CIContext Metal shaders and pixel buffer pool
+        if let pool = verticalPixelBufferAdaptor?.pixelBufferPool ?? compositeBufferPool {
+            var warmupBuffer: CVPixelBuffer?
+            CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &warmupBuffer)
+            if let warmupBuffer = warmupBuffer {
+                let dummy = CIImage(color: .black).cropped(to: CGRect(x: 0, y: 0, width: 32, height: 32))
+                ciContext.render(dummy, to: warmupBuffer)
+            }
+        }
+        
         hasStartedWriting = false
     }
     
     func startRecording() {
         writerQueue.async {
+            self.hasStartedWriting = false
             self.isRecording = true
+        }
+    }
+
+    func cacheSecondaryFrameIfNeeded(sampleBuffer: CMSampleBuffer, from position: AVCaptureDevice.Position) {
+        let isDualCam = AVCaptureMultiCamSession.isMultiCamSupported && DualCameraManager.shared.isDualCamModeEnabled
+        guard isDualCam, position != DualCameraManager.shared.currentCameraPosition else { return }
+        if let pb = CMSampleBufferGetImageBuffer(sampleBuffer) {
+            writerQueue.async {
+                self.latestFrontPixelBuffer = pb
+            }
         }
     }
     
     func writeVideo(sampleBuffer: CMSampleBuffer, from position: AVCaptureDevice.Position) {
+        let isDualCam = AVCaptureMultiCamSession.isMultiCamSupported && DualCameraManager.shared.isDualCamModeEnabled
+        if isDualCam && position != DualCameraManager.shared.currentCameraPosition {
+            if let pb = CMSampleBufferGetImageBuffer(sampleBuffer) {
+                writerQueue.async {
+                    self.latestFrontPixelBuffer = pb
+                }
+            }
+            return
+        }
+
+        // Avoid queueing multiple primary camera CMSampleBuffers on writerQueue, which would
+        // starve AVCaptureVideoDataOutput's buffer pool and freeze the live preview.
+        frameGuardLock.lock()
+        if isProcessingVideoFrame {
+            frameGuardLock.unlock()
+            return
+        }
+        isProcessingVideoFrame = true
+        frameGuardLock.unlock()
+
         writerQueue.async {
+            defer {
+                self.frameGuardLock.lock()
+                self.isProcessingVideoFrame = false
+                self.frameGuardLock.unlock()
+            }
             guard self.isRecording else { return }
             
             let isDualCam = AVCaptureMultiCamSession.isMultiCamSupported && DualCameraManager.shared.isDualCamModeEnabled
@@ -145,14 +224,17 @@ class DualVideoWriter {
                 }
                 
                 if !self.hasStartedWriting {
-                    self.verticalWriter?.startWriting()
+                    if self.verticalWriter?.status == .unknown {
+                        self.verticalWriter?.startWriting()
+                    }
                     self.verticalWriter?.startSession(atSourceTime: timestamp)
                     self.hasStartedWriting = true
                 }
                 
                 guard let backPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
                 var finalBufferToAppend = backPixelBuffer
-                if let frontPixelBuffer = self.latestFrontPixelBuffer, let pool = self.compositeBufferPool {
+                let activePool = self.verticalPixelBufferAdaptor?.pixelBufferPool ?? self.compositeBufferPool
+                if let frontPixelBuffer = self.latestFrontPixelBuffer, let pool = activePool {
                     var compositeBuffer: CVPixelBuffer?
                     CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &compositeBuffer)
                     if let compositeBuffer = compositeBuffer {
@@ -170,11 +252,15 @@ class DualVideoWriter {
                 }
                 
                 if !self.hasStartedWriting {
-                    self.verticalWriter?.startWriting()
+                    if self.verticalWriter?.status == .unknown {
+                        self.verticalWriter?.startWriting()
+                    }
                     self.verticalWriter?.startSession(atSourceTime: timestamp)
                     
                     if isWideAngle {
-                        self.horizontalWriter?.startWriting()
+                        if self.horizontalWriter?.status == .unknown {
+                            self.horizontalWriter?.startWriting()
+                        }
                         self.horizontalWriter?.startSession(atSourceTime: timestamp)
                     }
                     
@@ -282,8 +368,9 @@ class DualVideoWriter {
         let scaleY = pipHeight / CGFloat(CVPixelBufferGetHeight(front))
         
         let padding: CGFloat = 40
-        let tx = CGFloat(width) - pipWidth - padding
-        let ty = CGFloat(height) - pipHeight - padding
+        let corner = DualCameraManager.shared.pipCornerIndex
+        let tx: CGFloat = (corner == 0 || corner == 2) ? padding : (CGFloat(width) - pipWidth - padding)
+        let ty: CGFloat = (corner == 2 || corner == 3) ? padding : (CGFloat(height) - pipHeight - padding)
         
         let transform = CGAffineTransform(scaleX: scaleX, y: scaleY)
             .concatenating(CGAffineTransform(translationX: tx, y: ty))

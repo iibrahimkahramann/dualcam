@@ -53,5 +53,16 @@
   "studio_title": "Studio",
   "studio_empty_title": "Votre studio est vide",
   "studio_empty_subtitle": "Vos photos et vidéos\napparaîtront ici.",
-  "dual_camera_not_supported": "Votre appareil ne prend pas en charge la double caméra."
+  "dual_camera_not_supported": "Votre appareil ne prend pas en charge la double caméra.",
+  "wide_angle": "Grand Angle",
+  "editor_undo": "Annuler",
+  "editor_redo": "Rétablir",
+  "editor_done": "Terminé",
+  "editor_remove": "Supprimer",
+  "editor_text": "Texte",
+  "editor_text_hint": "Écrivez quelque chose...",
+  "editor_paint": "Dessin",
+  "editor_crop_rotate": "Rogner/Pivoter",
+  "editor_filters": "Filtres",
+  "editor_blur": "Flou"
 }

@@ -58,8 +58,9 @@ class PhotoCaptureManager {
                 let scaleY = pipHeight / frontCI.extent.height
                 
                 let padding: CGFloat = 40
-                let tx = CGFloat(width) - pipWidth - padding
-                let ty = CGFloat(height) - pipHeight - padding
+                let corner = DualCameraManager.shared.pipCornerIndex
+                let tx: CGFloat = (corner == 0 || corner == 2) ? padding : (CGFloat(width) - pipWidth - padding)
+                let ty: CGFloat = (corner == 2 || corner == 3) ? padding : (CGFloat(height) - pipHeight - padding)
                 
                 let transform = CGAffineTransform(scaleX: scaleX, y: scaleY)
                     .concatenating(CGAffineTransform(translationX: tx, y: ty))

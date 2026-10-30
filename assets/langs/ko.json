@@ -53,5 +53,16 @@
   "studio_title": "스튜디오",
   "studio_empty_title": "스튜디오가 비어 있습니다",
   "studio_empty_subtitle": "사진 및 비디오가\n여기에 표시됩니다.",
-  "dual_camera_not_supported": "이 기기는 듀얼 카메라를 지원하지 않습니다."
+  "dual_camera_not_supported": "이 기기는 듀얼 카메라를 지원하지 않습니다.",
+  "wide_angle": "광각",
+  "editor_undo": "실행 취소",
+  "editor_redo": "다시 실행",
+  "editor_done": "완료",
+  "editor_remove": "삭제",
+  "editor_text": "텍스트",
+  "editor_text_hint": "내용을 입력하세요...",
+  "editor_paint": "그리기",
+  "editor_crop_rotate": "자르기/회전",
+  "editor_filters": "필터",
+  "editor_blur": "블러"
 }

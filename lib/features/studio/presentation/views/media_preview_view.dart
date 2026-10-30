@@ -288,7 +288,7 @@ class _VideoPlayerWithControls extends StatefulWidget {
 }
 
 class _VideoPlayerWithControlsState extends State<_VideoPlayerWithControls> {
-  bool _showControls = true;
+  bool _showControls = false;
 
   @override
   void initState() {

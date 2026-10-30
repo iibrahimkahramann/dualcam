@@ -14,6 +14,8 @@ import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 /** Detach a shared (singleton) native view from a previous, disposed platform-view wrapper. */
 internal fun View.detachFromParent(): View {
     (parent as? ViewGroup)?.removeView(this)
@@ -48,6 +50,7 @@ class HorizontalPreviewView(context: Context, private val cameraManager: DualCam
 
     @Volatile
     private var isUpdating = false
+    private val uiUpdatePending = AtomicBoolean(false)
 
     private val updateRunnable = object : Runnable {
         override fun run() {
@@ -69,6 +72,7 @@ class HorizontalPreviewView(context: Context, private val cameraManager: DualCam
     }
 
     private fun captureFrame() {
+        if (uiUpdatePending.get()) return
         val preview = if (cameraManager.isDualCamModeEnabled && cameraManager.isMultiCamSupported) {
             cameraManager.currentFrontPreviewView
         } else {
@@ -83,9 +87,12 @@ class HorizontalPreviewView(context: Context, private val cameraManager: DualCam
             textureView.getBitmap(targetBuffer)
 
             useBufferA = !useBufferA
-            post {
-                if (isUpdating) {
-                    setImageBitmap(targetBuffer)
+            if (uiUpdatePending.compareAndSet(false, true)) {
+                post {
+                    uiUpdatePending.set(false)
+                    if (isUpdating) {
+                        setImageBitmap(targetBuffer)
+                    }
                 }
             }
         } catch (e: Exception) {

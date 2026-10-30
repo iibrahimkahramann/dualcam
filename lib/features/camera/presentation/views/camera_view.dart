@@ -58,6 +58,9 @@ class CameraView extends ConsumerStatefulWidget {
 }
 
 class _CameraViewState extends ConsumerState<CameraView> {
+  int _timerRunId = 0;
+  Offset? _pipDragOffset;
+
   @override
   void initState() {
     super.initState();
@@ -76,14 +79,21 @@ class _CameraViewState extends ConsumerState<CameraView> {
   }
 
   void _handleCaptureAction(bool isPhotoMode, bool isRecording) async {
+    if (ref.read(activeTimerCountdownProvider) != null) {
+      _timerRunId++;
+      ref.read(activeTimerCountdownProvider.notifier).set(null);
+      return;
+    }
+
     final timerDuration = ref.read(timerDurationProvider);
     if (timerDuration > 0 && (!isRecording || isPhotoMode)) {
+      final runId = ++_timerRunId;
       for (int i = timerDuration; i > 0; i--) {
-        if (!mounted) return;
+        if (!mounted || runId != _timerRunId) return;
         ref.read(activeTimerCountdownProvider.notifier).set(i);
         await Future.delayed(const Duration(seconds: 1));
       }
-      if (!mounted) return;
+      if (!mounted || runId != _timerRunId) return;
       ref.read(activeTimerCountdownProvider.notifier).set(null);
     }
 
@@ -772,7 +782,7 @@ class _CameraViewState extends ConsumerState<CameraView> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            "Geniş Açı",
+                            "wide_angle".tr(),
                             style: TextStyle(
                               color: ref.watch(isWideAngleModeEnabledProvider) ? Colors.yellow : Colors.white,
                               fontSize: 13,
@@ -989,36 +999,50 @@ class _CameraViewState extends ConsumerState<CameraView> {
             right: 20,
             child: Material(
               color: Colors.transparent,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: Colors.green),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        successBannerText ?? "",
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontWeight: FontWeight.bold,
+              child: GestureDetector(
+                onTap: () {
+                  ref.read(successBannerProvider.notifier).set(null);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const StudioView()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.green),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          successBannerText ?? "",
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      const Icon(
+                        CupertinoIcons.chevron_right,
+                        color: Colors.black54,
+                        size: 18,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1085,28 +1109,33 @@ class _CameraViewState extends ConsumerState<CameraView> {
               ),
             ),
 
-          // Floating PIP View (Animated)
+          // Floating PIP View (Animated & Draggable to 4 corners)
           if ((isMultiCamSupported && ref.watch(isDualCamModeEnabledProvider)) || ref.watch(isWideAngleModeEnabledProvider))
             Consumer(
               builder: (context, ref, child) {
                 final isWideAngle = ref.watch(isWideAngleModeEnabledProvider);
                 final isPipSwapped = ref.watch(isPipSwappedProvider);
+                final pipCorner = ref.watch(pipCornerProvider);
                 
                 double pipWidth;
                 double pipHeight;
                 double pipTop;
                 double pipLeft;
 
+                final topBound = MediaQuery.of(context).padding.top + (isTablet ? 90.0 : 70.0);
+
                 if (isWideAngle) {
                     pipWidth = pipBaseSize;
                     pipHeight = pipWidth * (9.0 / 16.0); // 16:9 horizontal
-                    pipTop = MediaQuery.of(context).padding.top + (isTablet ? 90.0 : 70.0);
-                    pipLeft = size.width - pipWidth - 16.0; // Right aligned
+                    final bottomBound = size.height - pipHeight - (isTablet ? 260.0 : 230.0);
+                    pipTop = (pipCorner == 0 || pipCorner == 1) ? topBound : bottomBound;
+                    pipLeft = (pipCorner == 0 || pipCorner == 2) ? 16.0 : (size.width - pipWidth - 16.0);
                 } else if (isMultiCamSupported) {
                     pipWidth = pipBaseSize * 0.65;
                     pipHeight = pipWidth * (16.0 / 9.0);
-                    pipTop = MediaQuery.of(context).padding.top + (isTablet ? 90.0 : 70.0);
-                    pipLeft = size.width - pipWidth - 16.0; // Right aligned
+                    final bottomBound = size.height - pipHeight - (isTablet ? 260.0 : 230.0);
+                    pipTop = (pipCorner == 0 || pipCorner == 1) ? topBound : bottomBound;
+                    pipLeft = (pipCorner == 0 || pipCorner == 2) ? 16.0 : (size.width - pipWidth - 16.0);
                 } else {
                     pipWidth = isPipSwapped ? (pipBaseSize * 0.5) : pipBaseSize;
                     pipHeight = isPipSwapped 
@@ -1118,41 +1147,73 @@ class _CameraViewState extends ConsumerState<CameraView> {
                     pipLeft = (size.width - pipWidth) / 2; // Centered
                 }
 
+                final displayTop = (_pipDragOffset != null)
+                    ? (pipTop + _pipDragOffset!.dy).clamp(topBound, size.height - pipHeight - 160.0)
+                    : pipTop;
+                final displayLeft = (_pipDragOffset != null)
+                    ? (pipLeft + _pipDragOffset!.dx).clamp(8.0, size.width - pipWidth - 8.0)
+                    : pipLeft;
+
                 return AnimatedPositioned(
-                  duration: const Duration(milliseconds: 350),
+                  duration: _pipDragOffset != null
+                      ? Duration.zero
+                      : const Duration(milliseconds: 300),
                   curve: Curves.easeOutCubic,
-                  top: pipTop,
-                  left: pipLeft,
+                  top: displayTop,
+                  left: displayLeft,
                   width: pipWidth,
                   height: pipHeight,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors.yellow,
-                        width: isTablet ? 3 : 2,
-                      ),
-                      borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
-                      color: Colors.black,
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black54, blurRadius: 10),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(isTablet ? 9 : 6),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (isWideAngle)
-                              CameraHorizontalPreview(key: horizCameraKey)
-                          else if (isPipSwapped)
-                              DualCameraPreview(key: dualCameraKey)
-                          else if (Platform.isAndroid)
-                              // Android: real front camera PreviewView fed by CameraX ConcurrentCamera
-                              CameraFrontPreview(key: frontCameraKey)
-                          else
-                              // iOS: horizontal preview already receives front frames in dual mode
-                              CameraHorizontalPreview(key: horizCameraKey),
+                  child: GestureDetector(
+                    onPanStart: (_) {
+                      setState(() {
+                        _pipDragOffset = Offset.zero;
+                      });
+                    },
+                    onPanUpdate: (details) {
+                      setState(() {
+                        _pipDragOffset = (_pipDragOffset ?? Offset.zero) + details.delta;
+                      });
+                    },
+                    onPanEnd: (details) {
+                      final centerX = displayLeft + pipWidth / 2 + details.velocity.pixelsPerSecond.dx * 0.08;
+                      final centerY = displayTop + pipHeight / 2 + details.velocity.pixelsPerSecond.dy * 0.08;
+                      final isRight = centerX >= size.width / 2;
+                      final isBottom = centerY >= size.height * 0.45;
+                      final newCorner = isBottom ? (isRight ? 3 : 2) : (isRight ? 1 : 0);
+                      setState(() {
+                        _pipDragOffset = null;
+                      });
+                      ref.read(pipCornerProvider.notifier).setCorner(newCorner);
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Colors.yellow,
+                          width: isTablet ? 3 : 2,
+                        ),
+                        borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
+                        color: Colors.black,
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black54, blurRadius: 10),
                         ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(isTablet ? 9 : 6),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            if (isWideAngle)
+                                CameraHorizontalPreview(key: horizCameraKey)
+                            else if (isPipSwapped)
+                                DualCameraPreview(key: dualCameraKey)
+                            else if (Platform.isAndroid)
+                                // Android: real front camera PreviewView fed by CameraX ConcurrentCamera
+                                CameraFrontPreview(key: frontCameraKey)
+                            else
+                                // iOS: horizontal preview already receives front frames in dual mode
+                                CameraHorizontalPreview(key: horizCameraKey),
+                          ],
+                        ),
                       ),
                     ),
                   ),

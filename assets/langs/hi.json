@@ -53,5 +53,16 @@
   "studio_title": "स्टूडियो",
   "studio_empty_title": "आपका स्टूडियो खाली है",
   "studio_empty_subtitle": "आपकी फ़ोटो और वीडियो\nयहां दिखाई देंगे।",
-  "dual_camera_not_supported": "आपका डिवाइस दोहरे कैमरे का समर्थन नहीं करता है।"
+  "dual_camera_not_supported": "आपका डिवाइस दोहरे कैमरे का समर्थन नहीं करता है।",
+  "wide_angle": "वाइड एंगल",
+  "editor_undo": "पूर्ववत करें",
+  "editor_redo": "फिर से करें",
+  "editor_done": "हो गया",
+  "editor_remove": "हटाएं",
+  "editor_text": "टेक्स्ट",
+  "editor_text_hint": "कुछ लिखें...",
+  "editor_paint": "ड्रा",
+  "editor_crop_rotate": "क्रॉप/रोटेट",
+  "editor_filters": "फ़िल्टर",
+  "editor_blur": "ब्लर"
 }

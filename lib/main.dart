@@ -89,6 +89,13 @@ class MyAppState extends ConsumerState<MyApp> {
         await Purchases.configure(configuration);
       }
       _setupRevenueCatListener();
+      final customerInfo = await Purchases.getCustomerInfo();
+      if (mounted) {
+        final entitlement = customerInfo.entitlements.all["premium"];
+        ref
+            .read(isPremiumProvider.notifier)
+            .updatePremiumStatus(entitlement?.isActive ?? false);
+      }
     } catch (e) {
       debugPrint("RevenueCat init error: $e");
     }

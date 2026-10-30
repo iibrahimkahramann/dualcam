@@ -105,4 +105,9 @@ class CameraRepositoryImpl implements CameraRepository {
   Future<void> setWideAngleModeEnabled(bool enabled) async {
     await _dataSource.setWideAngleModeEnabled(enabled);
   }
+
+  @override
+  Future<void> setPipCorner(int corner) async {
+    await _dataSource.setPipCorner(corner);
+  }
 }

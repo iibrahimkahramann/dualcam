@@ -16,11 +16,25 @@ protocol CameraFrontPreviewObserver: AnyObject {
     func didOutputFrontFrame(_ pixelBuffer: CVPixelBuffer)
 }
 
+private final class WeakPreviewObserver {
+    weak var value: CameraHorizontalPreviewObserver?
+    init(_ value: CameraHorizontalPreviewObserver) {
+        self.value = value
+    }
+}
+
+private final class WeakFrontPreviewObserver {
+    weak var value: CameraFrontPreviewObserver?
+    init(_ value: CameraFrontPreviewObserver) {
+        self.value = value
+    }
+}
+
 class DualCameraManager: NSObject {
     
     weak var delegate: DualCameraManagerDelegate?
-    private var previewObservers = [CameraHorizontalPreviewObserver]()
-    private var frontPreviewObservers = [CameraFrontPreviewObserver]()
+    private var previewObservers = [WeakPreviewObserver]()
+    private var frontPreviewObservers = [WeakFrontPreviewObserver]()
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
     private var pixelBufferPool: CVPixelBufferPool?
     
@@ -44,8 +58,9 @@ class DualCameraManager: NSObject {
     
     var currentCameraPosition: AVCaptureDevice.Position = .back
     
-    var isDualCamModeEnabled: Bool = true
+    var isDualCamModeEnabled: Bool = false
     var isWideAngleModeEnabled: Bool = false
+    var pipCornerIndex: Int = 1 // 0: topLeft, 1: topRight, 2: bottomLeft, 3: bottomRight
     
     var activeDevice: AVCaptureDevice? {
         if isMultiCamSupported {
@@ -441,23 +456,21 @@ class DualCameraManager: NSObject {
 
 extension DualCameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
     func addPreviewObserver(_ observer: CameraHorizontalPreviewObserver) {
-        if !previewObservers.contains(where: { $0 === observer }) {
-            previewObservers.append(observer)
-        }
+        previewObservers.removeAll(where: { $0.value == nil || $0.value === observer })
+        previewObservers.append(WeakPreviewObserver(observer))
     }
     
     func removePreviewObserver(_ observer: CameraHorizontalPreviewObserver) {
-        previewObservers.removeAll(where: { $0 === observer })
+        previewObservers.removeAll(where: { $0.value == nil || $0.value === observer })
     }
 
     func addFrontPreviewObserver(_ observer: CameraFrontPreviewObserver) {
-        if !frontPreviewObservers.contains(where: { $0 === observer }) {
-            frontPreviewObservers.append(observer)
-        }
+        frontPreviewObservers.removeAll(where: { $0.value == nil || $0.value === observer })
+        frontPreviewObservers.append(WeakFrontPreviewObserver(observer))
     }
     
     func removeFrontPreviewObserver(_ observer: CameraFrontPreviewObserver) {
-        frontPreviewObservers.removeAll(where: { $0 === observer })
+        frontPreviewObservers.removeAll(where: { $0.value == nil || $0.value === observer })
     }
 
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
@@ -465,7 +478,8 @@ extension DualCameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCap
             let pos: AVCaptureDevice.Position = isMultiCamSupported ? .back : .unspecified
             delegate?.didOutput(videoSampleBuffer: sampleBuffer, from: pos)
             
-            if !previewObservers.isEmpty {
+            let activePreviewObservers = previewObservers.compactMap { $0.value }
+            if !activePreviewObservers.isEmpty {
                 if !isMultiCamSupported {
                     if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
                         processHorizontalPreview(pixelBuffer)
@@ -480,18 +494,20 @@ extension DualCameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCap
         } else if output == frontVideoOutput {
             delegate?.didOutput(videoSampleBuffer: sampleBuffer, from: .front)
             
-            if !frontPreviewObservers.isEmpty {
+            let activeFrontObservers = frontPreviewObservers.compactMap { $0.value }
+            if !activeFrontObservers.isEmpty {
                 if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-                    for observer in frontPreviewObservers {
+                    for observer in activeFrontObservers {
                         observer.didOutputFrontFrame(pixelBuffer)
                     }
                 }
             }
             
-            if !previewObservers.isEmpty {
+            let activePreviewObservers = previewObservers.compactMap { $0.value }
+            if !activePreviewObservers.isEmpty {
                 if isDualCamModeEnabled {
                     if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-                        for observer in previewObservers {
+                        for observer in activePreviewObservers {
                             observer.didOutputCroppedFrame(pixelBuffer)
                         }
                     }
@@ -544,7 +560,7 @@ extension DualCameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCap
             
             ciContext.render(transformedImage, to: output)
             
-            for observer in previewObservers {
+            for observer in previewObservers.compactMap({ $0.value }) {
                 observer.didOutputCroppedFrame(output)
             }
         }

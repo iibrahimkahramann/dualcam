@@ -17,16 +17,18 @@ class CameraHorizontalPreviewFactory: NSObject, FlutterPlatformViewFactory {
 
 class CameraHorizontalPreviewView: NSObject, FlutterPlatformView {
     private let imageView: UIImageView
-    private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+    private weak var cameraManager: DualCameraManager?
+    private let ciContext = CIContext(options: [.useSoftwareRenderer: false, .cacheIntermediates: false])
+    private let renderLock = NSLock()
+    private var isRenderingFrame = false
     
     init(frame: CGRect, cameraManager: DualCameraManager) {
         self.imageView = UIImageView(frame: frame)
         self.imageView.contentMode = .scaleAspectFill
         self.imageView.clipsToBounds = true
+        self.cameraManager = cameraManager
         super.init()
         
-        // Listen to photo outputs or video outputs directly. 
-        // We can use an observer pattern on DualCameraManager.
         cameraManager.addPreviewObserver(self)
     }
     
@@ -35,18 +37,35 @@ class CameraHorizontalPreviewView: NSObject, FlutterPlatformView {
     }
     
     deinit {
-        // Assume manager cleans up or we remove observer
+        cameraManager?.removePreviewObserver(self)
     }
 }
 
 extension CameraHorizontalPreviewView: CameraHorizontalPreviewObserver {
     func didOutputCroppedFrame(_ pixelBuffer: CVPixelBuffer) {
+        renderLock.lock()
+        if isRenderingFrame {
+            renderLock.unlock()
+            return
+        }
+        isRenderingFrame = true
+        renderLock.unlock()
+
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return }
+        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
+            renderLock.lock()
+            isRenderingFrame = false
+            renderLock.unlock()
+            return
+        }
         let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: .up)
         
         DispatchQueue.main.async { [weak self] in
-            self?.imageView.image = image
+            guard let self = self else { return }
+            self.imageView.image = image
+            self.renderLock.lock()
+            self.isRenderingFrame = false
+            self.renderLock.unlock()
         }
     }
 }
@@ -66,12 +85,16 @@ class CameraFrontPreviewFactory: NSObject, FlutterPlatformViewFactory {
 
 class CameraFrontPreviewView: NSObject, FlutterPlatformView {
     private let imageView: UIImageView
-    private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+    private weak var cameraManager: DualCameraManager?
+    private let ciContext = CIContext(options: [.useSoftwareRenderer: false, .cacheIntermediates: false])
+    private let renderLock = NSLock()
+    private var isRenderingFrame = false
     
     init(frame: CGRect, cameraManager: DualCameraManager) {
         self.imageView = UIImageView(frame: frame)
         self.imageView.contentMode = .scaleAspectFill
         self.imageView.clipsToBounds = true
+        self.cameraManager = cameraManager
         super.init()
         
         cameraManager.addFrontPreviewObserver(self)
@@ -82,18 +105,35 @@ class CameraFrontPreviewView: NSObject, FlutterPlatformView {
     }
     
     deinit {
-        // Observer removed or manager handles it
+        cameraManager?.removeFrontPreviewObserver(self)
     }
 }
 
 extension CameraFrontPreviewView: CameraFrontPreviewObserver {
     func didOutputFrontFrame(_ pixelBuffer: CVPixelBuffer) {
+        renderLock.lock()
+        if isRenderingFrame {
+            renderLock.unlock()
+            return
+        }
+        isRenderingFrame = true
+        renderLock.unlock()
+
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return }
+        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
+            renderLock.lock()
+            isRenderingFrame = false
+            renderLock.unlock()
+            return
+        }
         let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: .up)
         
         DispatchQueue.main.async { [weak self] in
-            self?.imageView.image = image
+            guard let self = self else { return }
+            self.imageView.image = image
+            self.renderLock.lock()
+            self.isRenderingFrame = false
+            self.renderLock.unlock()
         }
     }
 }

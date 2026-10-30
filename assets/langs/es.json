@@ -53,5 +53,16 @@
   "studio_title": "Estudio",
   "studio_empty_title": "Tu estudio está vacío",
   "studio_empty_subtitle": "Tus fotos y videos\naparecerán aquí.",
-  "dual_camera_not_supported": "Su dispositivo no admite cámara dual."
+  "dual_camera_not_supported": "Su dispositivo no admite cámara dual.",
+  "wide_angle": "Gran Angular",
+  "editor_undo": "Deshacer",
+  "editor_redo": "Rehacer",
+  "editor_done": "Listo",
+  "editor_remove": "Eliminar",
+  "editor_text": "Texto",
+  "editor_text_hint": "Escribe algo...",
+  "editor_paint": "Dibujar",
+  "editor_crop_rotate": "Recortar/Rotar",
+  "editor_filters": "Filtros",
+  "editor_blur": "Desenfoque"
 }

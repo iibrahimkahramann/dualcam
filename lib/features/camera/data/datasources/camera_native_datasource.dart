@@ -159,4 +159,8 @@ class CameraNativeDataSource {
   Future<void> setWideAngleModeEnabled(bool enabled) async {
     await _channel.invokeMethod('setWideAngleMode', enabled);
   }
+
+  Future<void> setPipCorner(int corner) async {
+    await _channel.invokeMethod('setPipCorner', corner);
+  }
 }

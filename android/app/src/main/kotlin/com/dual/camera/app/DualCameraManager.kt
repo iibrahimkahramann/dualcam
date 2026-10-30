@@ -6,33 +6,36 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import android.graphics.RectF
+import android.media.ExifInterface
 import android.os.Handler
 import android.os.Looper
+import android.view.TextureView
+import android.view.View
+import android.view.ViewGroup
 import androidx.camera.core.Camera
-import androidx.camera.core.CameraControl
-import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ConcurrentCamera
 import androidx.camera.core.ConcurrentCamera.SingleCameraConfig
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
-import androidx.camera.core.SurfaceOrientedMeteringPointFactory
 import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
-import androidx.camera.video.VideoRecordEvent
 import androidx.camera.video.Recorder
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
+import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -50,18 +53,33 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
 
     private var primaryPreviewView: PreviewView? = null
     private var frontPreviewView: PreviewView? = null
+    private var primaryPreviewUseCase: Preview? = null
+    private var frontPreviewUseCase: Preview? = null
 
     private var primaryImageCapture: ImageCapture? = null
     private var secondaryImageCapture: ImageCapture? = null
 
     private var videoCapture: VideoCapture<Recorder>? = null
     private var currentRecording: Recording? = null
+    private var dualVideoRecorder: DualVideoRecorder? = null
     private var currentVideoFile: File? = null
     private var pendingRecordingCallback: ((Result<List<String>>) -> Unit)? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var recordingTimeoutRunnable: Runnable? = null
 
     private val cameraExecutor = Executors.newSingleThreadExecutor()
+
+    // Reusable 9:16 buffers & geometry objects for real-time Dual Cam video compositing (zero per-frame GC allocation)
+    private val videoMainBuffer = Bitmap.createBitmap(720, 1280, Bitmap.Config.ARGB_8888)
+    private val videoPipBuffer = Bitmap.createBitmap(270, 480, Bitmap.Config.ARGB_8888)
+    private val videoBitmapPaint = Paint(
+        Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG
+    )
+    private val pipClipPath = Path()
+    private val renderDrawMatrix = Matrix()
+    private val renderCorrectionMatrix = Matrix()
+    private val renderMainDstRect = RectF()
+    private val renderPipDstRect = RectF()
 
     var isRunning: Boolean = false
         private set
@@ -70,7 +88,9 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
         private set
 
     var isDualCamModeEnabled: Boolean = false
+    var isPipSwapped: Boolean = false
     var isWideAngleModeEnabled: Boolean = false
+    var pipCornerIndex: Int = 1 // 0: topLeft, 1: topRight, 2: bottomLeft, 3: bottomRight
     var currentLensFacing: Int = CameraSelector.LENS_FACING_BACK
     private var isUltraWideLensSelected: Boolean = false
 
@@ -81,6 +101,13 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
     var currentCaptureWidth = 1080
     var currentCaptureHeight = 1920
     var currentFPS = 30
+
+    private val activeCamera: Camera?
+        get() = if (isMultiCamSupported && isDualCamModeEnabled && isPipSwapped) {
+            secondaryCamera ?: primaryCamera
+        } else {
+            primaryCamera
+        }
 
     fun checkPermissions(callback: (Boolean) -> Unit) {
         val cameraGranted = ContextCompat.checkSelfPermission(
@@ -183,6 +210,8 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
             }
 
             val preview = Preview.Builder().build()
+            primaryPreviewUseCase = preview
+            frontPreviewUseCase = null
             primaryPreviewView?.let { preview.setSurfaceProvider(it.surfaceProvider) }
 
             primaryImageCapture = ImageCapture.Builder()
@@ -215,83 +244,49 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
     }
 
     /**
-     * Binds back + front cameras concurrently.
-     *
-     * Concurrent camera hardware only guarantees a limited number of streams per camera,
-     * so we try progressively lighter use-case combinations. The last attempt is
-     * Preview + Preview, which every concurrent-capable device must support — this
-     * guarantees both previews are live (back in primaryPreviewView, front in frontPreviewView).
+     * Binds back + front cameras concurrently with Preview + Preview so both streams get maximum
+     * concurrent resolution (up to 1440p) and zero surface-combination conflicts.
+     * Both photo capture and video recording in Dual Cam mode composite directly from the two
+     * live PreviewViews.
      */
     private fun startConcurrentCameras(provider: ProcessCameraProvider) {
-        // attempt index -> (back has ImageCapture, back has VideoCapture, front has ImageCapture)
-        val attempts = listOf(
-            Triple(true, true, true),
-            Triple(false, true, true),
-            Triple(true, false, true),
-            Triple(false, true, false),
-            Triple(true, false, false),
-            Triple(false, false, false)
-        )
+        try {
+            provider.unbindAll()
 
-        for ((backImage, backVideo, frontImage) in attempts) {
-            try {
-                provider.unbindAll()
+            val backPreview = Preview.Builder().build()
+            val frontPreview = Preview.Builder().build()
+            primaryPreviewUseCase = backPreview
+            frontPreviewUseCase = frontPreview
+            primaryPreviewView?.let { backPreview.setSurfaceProvider(it.surfaceProvider) }
+            frontPreviewView?.let { frontPreview.setSurfaceProvider(it.surfaceProvider) }
 
-                val backPreview = Preview.Builder().build()
-                val frontPreview = Preview.Builder().build()
-                primaryPreviewView?.let { backPreview.setSurfaceProvider(it.surfaceProvider) }
-                frontPreviewView?.let { frontPreview.setSurfaceProvider(it.surfaceProvider) }
+            val backGroup = UseCaseGroup.Builder().addUseCase(backPreview).build()
+            val frontGroup = UseCaseGroup.Builder().addUseCase(frontPreview).build()
 
-                val backImageCapture = if (backImage) ImageCapture.Builder().build() else null
-                val frontImageCapture = if (frontImage) ImageCapture.Builder().build() else null
-                val backVideoCapture = if (backVideo) {
-                    VideoCapture.withOutput(
-                        Recorder.Builder()
-                            .setQualitySelector(QualitySelector.from(Quality.HD))
-                            .build()
-                    )
-                } else null
-
-                val backGroup = UseCaseGroup.Builder().addUseCase(backPreview).apply {
-                    backImageCapture?.let { addUseCase(it) }
-                    backVideoCapture?.let { addUseCase(it) }
-                }.build()
-
-                val frontGroup = UseCaseGroup.Builder().addUseCase(frontPreview).apply {
-                    frontImageCapture?.let { addUseCase(it) }
-                }.build()
-
-                val concurrentCamera = provider.bindToLifecycle(
-                    listOf(
-                        SingleCameraConfig(CameraSelector.DEFAULT_BACK_CAMERA, backGroup, lifecycleOwner),
-                        SingleCameraConfig(CameraSelector.DEFAULT_FRONT_CAMERA, frontGroup, lifecycleOwner)
-                    )
+            val concurrentCamera = provider.bindToLifecycle(
+                listOf(
+                    SingleCameraConfig(CameraSelector.DEFAULT_BACK_CAMERA, backGroup, lifecycleOwner),
+                    SingleCameraConfig(CameraSelector.DEFAULT_FRONT_CAMERA, frontGroup, lifecycleOwner)
                 )
+            )
 
-                primaryCamera = concurrentCamera.cameras.firstOrNull {
-                    it.cameraInfo.lensFacing == CameraSelector.LENS_FACING_BACK
-                }
-                secondaryCamera = concurrentCamera.cameras.firstOrNull {
-                    it.cameraInfo.lensFacing == CameraSelector.LENS_FACING_FRONT
-                }
-                primaryImageCapture = backImageCapture
-                secondaryImageCapture = frontImageCapture
-                videoCapture = backVideoCapture
-
-                android.util.Log.d(
-                    "DualCamDebug",
-                    "Concurrent bind OK (backImage=$backImage, backVideo=$backVideo, frontImage=$frontImage)"
-                )
-                return
-            } catch (e: Exception) {
-                android.util.Log.w(
-                    "DualCamDebug",
-                    "Concurrent bind failed (backImage=$backImage, backVideo=$backVideo, frontImage=$frontImage): ${e.message}"
-                )
+            primaryCamera = concurrentCamera.cameras.firstOrNull {
+                it.cameraInfo.lensFacing == CameraSelector.LENS_FACING_BACK
             }
+            secondaryCamera = concurrentCamera.cameras.firstOrNull {
+                it.cameraInfo.lensFacing == CameraSelector.LENS_FACING_FRONT
+            }
+            primaryImageCapture = null
+            secondaryImageCapture = null
+            videoCapture = null
+
+            android.util.Log.d("DualCamDebug", "Concurrent Preview+Preview bind OK")
+            return
+        } catch (e: Exception) {
+            android.util.Log.w("DualCamDebug", "Concurrent bind failed: ${e.message}")
         }
 
-        // Even Preview + Preview failed: device does not really support concurrent cameras.
+        // Fallback if device does not really support concurrent cameras
         try { provider.unbindAll() } catch (_: Exception) {}
         secondaryCamera = null
         secondaryImageCapture = null
@@ -302,6 +297,8 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
     fun stop() {
         recordingTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
         recordingTimeoutRunnable = null
+        dualVideoRecorder?.stop {}
+        dualVideoRecorder = null
         currentRecording?.stop()
         currentRecording = null
         pendingRecordingCallback = null
@@ -320,7 +317,12 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
             scaleType = PreviewView.ScaleType.FILL_CENTER
         }
         primaryPreviewView = view
-        start()
+        val existingPreview = primaryPreviewUseCase
+        if (isRunning && existingPreview != null) {
+            existingPreview.setSurfaceProvider(view.surfaceProvider)
+        } else {
+            start()
+        }
         return view
     }
 
@@ -331,7 +333,12 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
             scaleType = PreviewView.ScaleType.FILL_CENTER
         }
         frontPreviewView = view
-        start()
+        val existingFrontPreview = frontPreviewUseCase
+        if (isRunning && isMultiCamSupported && isDualCamModeEnabled && existingFrontPreview != null) {
+            existingFrontPreview.setSurfaceProvider(view.surfaceProvider)
+        } else {
+            start()
+        }
         return view
     }
 
@@ -339,8 +346,9 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
         isUltraWideLensSelected = false
 
         // In concurrent dual mode both cameras are already live; swapping the PiP is
-        // purely a UI change, so do NOT rebind (rebinding would restart both cameras).
+        // a UI + compositor swap, so do NOT rebind (rebinding would restart both cameras).
         if (isMultiCamSupported && isDualCamModeEnabled && secondaryCamera != null) {
+            isPipSwapped = !isPipSwapped
             callback(Result.success(getMaxZoom()))
             return
         }
@@ -365,11 +373,9 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
                 val chars = cm.getCameraCharacteristics("0")
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                     val physicalIds = chars.physicalCameraIds
-                    android.util.Log.d("DualCamDebug", "Camera 0 physicalIds: $physicalIds")
                     for (pId in physicalIds) {
                         val pChars = cm.getCameraCharacteristics(pId)
                         val focals = pChars.get(android.hardware.camera2.CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
-                        android.util.Log.d("DualCamDebug", "Physical camera $pId focals: ${focals?.toList()}")
                         if (focals != null && focals.any { it < 3.0f }) {
                             return true
                         }
@@ -415,33 +421,36 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
     }
 
     fun getMinZoom(): Double {
-        if (currentLensFacing == CameraSelector.LENS_FACING_BACK) {
-            val minRatio = primaryCamera?.cameraInfo?.zoomState?.value?.minZoomRatio?.toDouble() ?: 1.0
+        val cam = activeCamera
+        val isBack = if (isMultiCamSupported && isDualCamModeEnabled) !isPipSwapped else (currentLensFacing == CameraSelector.LENS_FACING_BACK)
+        if (isBack) {
+            val minRatio = cam?.cameraInfo?.zoomState?.value?.minZoomRatio?.toDouble() ?: 1.0
             if (minRatio <= 0.6) return 0.5
             if (hasUltraWideCamera()) return 0.5
             return 1.0
         } else {
-            val minRatio = primaryCamera?.cameraInfo?.zoomState?.value?.minZoomRatio?.toDouble() ?: 1.0
+            val minRatio = cam?.cameraInfo?.zoomState?.value?.minZoomRatio?.toDouble() ?: 1.0
             if (minRatio <= 0.6) return minRatio
             return 1.0
         }
     }
 
     fun getMaxZoom(): Double {
-        return primaryCamera?.cameraInfo?.zoomState?.value?.maxZoomRatio?.toDouble() ?: 5.0
+        return activeCamera?.cameraInfo?.zoomState?.value?.maxZoomRatio?.toDouble() ?: 5.0
     }
 
     fun setZoom(factor: Double) {
-        val minRatio = primaryCamera?.cameraInfo?.zoomState?.value?.minZoomRatio ?: 1.0f
-        val maxRatio = primaryCamera?.cameraInfo?.zoomState?.value?.maxZoomRatio ?: 5.0f
+        val cam = activeCamera ?: return
+        val minRatio = cam.cameraInfo.zoomState.value?.minZoomRatio ?: 1.0f
+        val maxRatio = cam.cameraInfo.zoomState.value?.maxZoomRatio ?: 5.0f
 
         if (factor < 0.9) {
             if (minRatio <= 0.6f) {
                 val target = factor.toFloat().coerceAtLeast(minRatio)
-                primaryCamera?.cameraControl?.setZoomRatio(target)
+                cam.cameraControl.setZoomRatio(target)
             } else if (hasUltraWideCamera() && currentLensFacing == CameraSelector.LENS_FACING_BACK) {
                 try {
-                    val c2Control = androidx.camera.camera2.interop.Camera2CameraControl.from(primaryCamera!!.cameraControl)
+                    val c2Control = androidx.camera.camera2.interop.Camera2CameraControl.from(cam.cameraControl)
                     val options = androidx.camera.camera2.interop.CaptureRequestOptions.Builder()
                         .setCaptureRequestOption(android.hardware.camera2.CaptureRequest.CONTROL_ZOOM_RATIO, factor.toFloat())
                         .build()
@@ -452,7 +461,7 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
             }
         } else {
             try {
-                val c2Control = androidx.camera.camera2.interop.Camera2CameraControl.from(primaryCamera!!.cameraControl)
+                val c2Control = androidx.camera.camera2.interop.Camera2CameraControl.from(cam.cameraControl)
                 val options = androidx.camera.camera2.interop.CaptureRequestOptions.Builder()
                     .clearCaptureRequestOption(android.hardware.camera2.CaptureRequest.CONTROL_ZOOM_RATIO)
                     .build()
@@ -461,7 +470,7 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
                 // Ignore
             }
             val target = factor.toFloat().coerceIn(minRatio, maxRatio)
-            primaryCamera?.cameraControl?.setZoomRatio(target)
+            cam.cameraControl.setZoomRatio(target)
         }
     }
 
@@ -474,15 +483,19 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
     }
 
     fun setExposureBias(bias: Double) {
-        primaryCamera?.cameraControl?.setExposureCompensationIndex(bias.roundToInt())
+        activeCamera?.cameraControl?.setExposureCompensationIndex(bias.roundToInt())
     }
 
     fun setFocusPoint(x: Double, y: Double) {
-        val preview = primaryPreviewView ?: return
+        val preview = if (isMultiCamSupported && isDualCamModeEnabled && isPipSwapped) {
+            frontPreviewView ?: primaryPreviewView
+        } else {
+            primaryPreviewView
+        } ?: return
         val factory = preview.meteringPointFactory
         val point = factory.createPoint(x.toFloat() * preview.width, y.toFloat() * preview.height)
         val action = FocusMeteringAction.Builder(point).build()
-        primaryCamera?.cameraControl?.startFocusAndMetering(action)
+        activeCamera?.cameraControl?.startFocusAndMetering(action)
     }
 
     fun setHDR(enabled: Boolean) {
@@ -504,12 +517,67 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
     }
 
     fun startRecording() {
+        val hasAudio = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+
+        // 1. In Dual Cam mode, record composited video (main camera + rounded-corner PiP camera)
+        if (isMultiCamSupported && isDualCamModeEnabled) {
+            dualVideoRecorder?.stop {}
+            val outputFile = File(context.cacheDir, "video_dual_" + UUID.randomUUID().toString() + ".mp4")
+            currentVideoFile = outputFile
+
+            val recorder = DualVideoRecorder(
+                outputFile = outputFile,
+                enableAudio = hasAudio,
+                frameRenderer = { canvas, width, height ->
+                    renderDualVideoFrame(canvas, width, height)
+                }
+            )
+            if (recorder.start()) {
+                dualVideoRecorder = recorder
+                return
+            } else {
+                dualVideoRecorder = null
+            }
+        }
+
+        // 2. In Wide Angle mode, record BOTH 9:16 vertical and 16:9 center-cropped horizontal video simultaneously
+        if (isWideAngleModeEnabled) {
+            dualVideoRecorder?.stop {}
+            val vertFile = File(context.cacheDir, "video_vert_" + UUID.randomUUID().toString() + ".mp4")
+            val horizFile = File(context.cacheDir, "video_horiz_" + UUID.randomUUID().toString() + ".mp4")
+            currentVideoFile = vertFile
+
+            val recorder = DualVideoRecorder(
+                outputFile = vertFile,
+                enableAudio = hasAudio,
+                horizontalOutputFile = horizFile,
+                framePrePass = {
+                    captureSingleCameraBuffer()
+                },
+                horizontalFrameRenderer = { canvas, width, height ->
+                    renderSingleCameraFrame(canvas, width, height, copyTexture = false)
+                },
+                frameRenderer = { canvas, width, height ->
+                    renderSingleCameraFrame(canvas, width, height, copyTexture = false)
+                }
+            )
+            if (recorder.start()) {
+                dualVideoRecorder = recorder
+                return
+            } else {
+                dualVideoRecorder = null
+            }
+        }
+
         val vc = videoCapture
         if (vc == null) {
             currentVideoFile = null
             return
         }
-        val outputFile = File(context.cacheDir, "video_" + java.util.UUID.randomUUID().toString() + ".mp4")
+        val outputFile = File(context.cacheDir, "video_" + UUID.randomUUID().toString() + ".mp4")
         currentVideoFile = outputFile
 
         val outputOptions = FileOutputOptions.Builder(outputFile).build()
@@ -543,6 +611,13 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
     }
 
     fun stopRecording(callback: (Result<List<String>>) -> Unit) {
+        val dualRec = dualVideoRecorder
+        if (dualRec != null) {
+            dualVideoRecorder = null
+            dualRec.stop(callback)
+            return
+        }
+
         val rec = currentRecording
         if (rec == null) {
             val path = currentVideoFile?.absolutePath
@@ -575,14 +650,195 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
         mainHandler.postDelayed(timeoutRunnable, 5000)
     }
 
+    private fun captureSingleCameraBuffer(): Boolean {
+        val mainView = primaryPreviewView ?: return false
+        val mainTv = findTextureView(mainView) ?: return false
+        if (!mainTv.isAvailable) return false
+        mainTv.getBitmap(videoMainBuffer)
+        return true
+    }
+
+    private fun renderSingleCameraFrame(
+        canvas: Canvas,
+        width: Int,
+        height: Int,
+        copyTexture: Boolean = true
+    ): Boolean {
+        val mainView = primaryPreviewView ?: return false
+        val mainTv = findTextureView(mainView) ?: return false
+        if (!mainTv.isAvailable) return false
+
+        canvas.drawColor(Color.BLACK)
+        renderMainDstRect.set(0f, 0f, width.toFloat(), height.toFloat())
+        drawTextureViewToCanvas(mainView, mainTv, videoMainBuffer, canvas, renderMainDstRect, copyTexture)
+        return true
+    }
+
+    private fun renderDualVideoFrame(canvas: Canvas, width: Int, height: Int): Boolean {
+        val mainView = if (isPipSwapped) frontPreviewView else primaryPreviewView
+        val pipView = if (isPipSwapped) primaryPreviewView else frontPreviewView
+
+        val mainTv = findTextureView(mainView) ?: return false
+        if (!mainTv.isAvailable || mainView == null) return false
+
+        canvas.drawColor(Color.BLACK)
+
+        renderMainDstRect.set(0f, 0f, width.toFloat(), height.toFloat())
+        drawTextureViewToCanvas(mainView, mainTv, videoMainBuffer, canvas, renderMainDstRect, copyTexture = true)
+
+        val pipTv = findTextureView(pipView)
+        if (pipView != null && pipTv != null && pipTv.isAvailable) {
+            val scaleFactor = width / 1080f
+            val pipW = width * 0.3f
+            val pipH = height * 0.3f
+            val padding = 40f * scaleFactor
+            val cornerRadius = 24f * scaleFactor
+
+            val left = if (pipCornerIndex == 0 || pipCornerIndex == 2) padding else (width - pipW - padding)
+            val top = if (pipCornerIndex == 0 || pipCornerIndex == 1) padding else (height - pipH - padding)
+            renderPipDstRect.set(left, top, left + pipW, top + pipH)
+
+            pipClipPath.reset()
+            pipClipPath.addRoundRect(renderPipDstRect, cornerRadius, cornerRadius, Path.Direction.CW)
+
+            canvas.save()
+            canvas.clipPath(pipClipPath)
+            drawTextureViewToCanvas(pipView, pipTv, videoPipBuffer, canvas, renderPipDstRect, copyTexture = true)
+            canvas.restore()
+        }
+
+        return true
+    }
+
+    internal fun drawTextureViewToCanvas(
+        previewView: PreviewView,
+        textureView: TextureView,
+        buffer: Bitmap,
+        canvas: Canvas,
+        dstRect: RectF,
+        copyTexture: Boolean = true
+    ) {
+        if (copyTexture) {
+            textureView.getBitmap(buffer)
+        }
+        val tvW = textureView.width
+        val tvH = textureView.height
+        val pvW = previewView.width
+        val pvH = previewView.height
+
+        if (tvW <= 0 || tvH <= 0 || pvW <= 0 || pvH <= 0) {
+            canvas.drawBitmap(buffer, null, dstRect, videoBitmapPaint)
+            return
+        }
+
+        val matrix = renderDrawMatrix
+        matrix.reset()
+        // 1. Map buffer coordinates -> TextureView layout coordinates (mResolution)
+        matrix.setScale(
+            tvW.toFloat() / buffer.width.toFloat(),
+            tvH.toFloat() / buffer.height.toFloat()
+        )
+        // 2. Apply CameraX's TextureView orientation correction matrix
+        val correction = renderCorrectionMatrix
+        correction.reset()
+        textureView.getTransform(correction)
+        matrix.postConcat(correction)
+        // 3. Apply CameraX's FILL_CENTER scale & translation into PreviewView space (0..pvW, 0..pvH)
+        matrix.postScale(textureView.scaleX, textureView.scaleY)
+        matrix.postTranslate(textureView.translationX, textureView.translationY)
+        // 4. Center-crop PreviewView space (0..pvW, 0..pvH) into dstRect
+        val scaleToDst = maxOf(
+            dstRect.width() / pvW.toFloat(),
+            dstRect.height() / pvH.toFloat()
+        )
+        val dx = dstRect.left + (dstRect.width() - pvW * scaleToDst) / 2f
+        val dy = dstRect.top + (dstRect.height() - pvH * scaleToDst) / 2f
+        matrix.postScale(scaleToDst, scaleToDst)
+        matrix.postTranslate(dx, dy)
+
+        canvas.drawBitmap(buffer, matrix, videoBitmapPaint)
+    }
+
+    internal fun findTextureView(view: View?): TextureView? {
+        if (view is TextureView) return view
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                val child = findTextureView(view.getChildAt(i))
+                if (child != null) return child
+            }
+        }
+        return null
+    }
+
+    private fun capturePreviewBitmapOnUiThread(previewView: PreviewView?): Bitmap? {
+        if (previewView == null) return null
+        try {
+            val bmp = previewView.bitmap
+            if (bmp != null && bmp.width > 0 && bmp.height > 0) {
+                return bmp
+            }
+        } catch (_: Exception) {}
+
+        val tv = findTextureView(previewView) ?: return null
+        if (!tv.isAvailable) return null
+        val outW = if (previewView.width > 0) previewView.width else 1080
+        val outH = if (previewView.height > 0) previewView.height else 1920
+        val raw = tv.getBitmap(minOf(outW, 1080), minOf(outH, 1920)) ?: return null
+        val output = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        drawTextureViewToCanvas(previewView, tv, raw, canvas, RectF(0f, 0f, outW.toFloat(), outH.toFloat()))
+        raw.recycle()
+        return output
+    }
+
     fun takePhoto(callback: (Result<List<String>>) -> Unit) {
+        // In Dual Cam mode, capture both live PreviewViews on the UI thread and composite them on cameraExecutor
+        if (isMultiCamSupported && isDualCamModeEnabled) {
+            mainHandler.post {
+                val mainView = if (isPipSwapped) frontPreviewView else primaryPreviewView
+                val pipView = if (isPipSwapped) primaryPreviewView else frontPreviewView
+
+                val mainBitmap = capturePreviewBitmapOnUiThread(mainView)
+                val pipBitmap = capturePreviewBitmapOnUiThread(pipView)
+
+                if (mainBitmap == null) {
+                    callback(Result.failure(Exception("Failed to capture dual camera preview frame")))
+                    return@post
+                }
+
+                cameraExecutor.execute {
+                    try {
+                        val composited = if (pipBitmap != null) {
+                            createPipComposite(mainBitmap, pipBitmap)
+                        } else {
+                            mainBitmap
+                        }
+
+                        val finalFile = File(context.cacheDir, "photo_dual_" + UUID.randomUUID().toString() + ".jpg")
+                        FileOutputStream(finalFile).use { out ->
+                            composited.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                        }
+
+                        mainHandler.post {
+                            callback(Result.success(listOf(finalFile.absolutePath)))
+                        }
+                    } catch (e: Exception) {
+                        mainHandler.post {
+                            callback(Result.failure(e))
+                        }
+                    }
+                }
+            }
+            return
+        }
+
         val capture = primaryImageCapture
         if (capture == null) {
             callback(Result.failure(Exception("ImageCapture is null")))
             return
         }
 
-        val primaryFile = File(context.cacheDir, "photo_" + java.util.UUID.randomUUID().toString() + ".jpg")
+        val primaryFile = File(context.cacheDir, "photo_" + UUID.randomUUID().toString() + ".jpg")
         val outputOptions = ImageCapture.OutputFileOptions.Builder(primaryFile).build()
 
         capture.takePicture(
@@ -590,11 +846,7 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
             cameraExecutor,
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    if (isMultiCamSupported && isDualCamModeEnabled && secondaryImageCapture != null) {
-                        captureSecondaryAndComposite(primaryFile, callback)
-                    } else {
-                        handleSinglePhotoSaved(primaryFile, callback)
-                    }
+                    handleSinglePhotoSaved(primaryFile, callback)
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -604,84 +856,95 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
         )
     }
 
-    private fun captureSecondaryAndComposite(
-        primaryFile: File,
-        callback: (Result<List<String>>) -> Unit
-    ) {
-        val secondaryFile = File(context.cacheDir, "temp_front_" + java.util.UUID.randomUUID().toString() + ".jpg")
-        val options = ImageCapture.OutputFileOptions.Builder(secondaryFile).build()
+    private fun createPipComposite(main: Bitmap, pip: Bitmap): Bitmap {
+        val outW = maxOf(main.width, 1080)
+        val outH = if (main.width > 0 && main.height > 0) {
+            (outW.toFloat() * main.height.toFloat() / main.width.toFloat()).roundToInt()
+        } else {
+            1920
+        }
 
-        secondaryImageCapture?.takePicture(
-            options,
-            cameraExecutor,
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    try {
-                        val backBitmap = BitmapFactory.decodeFile(primaryFile.absolutePath)
-                        val frontBitmap = BitmapFactory.decodeFile(secondaryFile.absolutePath)
-
-                        val composited = createPipComposite(backBitmap, frontBitmap)
-
-                        val finalFile = File(context.cacheDir, "photo_dual_" + java.util.UUID.randomUUID().toString() + ".jpg")
-                        FileOutputStream(finalFile).use { out ->
-                            composited.compress(Bitmap.CompressFormat.JPEG, 95, out)
-                        }
-
-                        // Cleanup temp files
-                        primaryFile.delete()
-                        secondaryFile.delete()
-
-                        ContextCompat.getMainExecutor(context).execute {
-                            callback(Result.success(listOf(finalFile.absolutePath)))
-                        }
-                    } catch (e: Exception) {
-                        handleSinglePhotoSaved(primaryFile, callback)
-                    }
-                }
-
-                override fun onError(exception: ImageCaptureException) {
-                    handleSinglePhotoSaved(primaryFile, callback)
-                }
-            }
-        ) ?: handleSinglePhotoSaved(primaryFile, callback)
-    }
-
-    private fun createPipComposite(back: Bitmap, front: Bitmap): Bitmap {
-        val result = back.copy(Bitmap.Config.ARGB_8888, true)
+        val result = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
+        canvas.drawBitmap(main, null, RectF(0f, 0f, outW.toFloat(), outH.toFloat()), videoBitmapPaint)
 
-        val pipWidth = (back.width * 0.3f).roundToInt()
-        val pipHeight = (back.height * 0.3f).roundToInt()
-        val padding = 40f
+        val scaleFactor = outW / 1080f
+        val pipWidth = (outW * 0.3f).roundToInt()
+        val pipHeight = (outH * 0.3f).roundToInt()
+        val padding = 40f * scaleFactor
+        val cornerRadius = 24f * scaleFactor
 
-        val left = back.width - pipWidth - padding
-        val top = padding
-        val right = left + pipWidth
-        val bottom = top + pipHeight
+        val left = if (pipCornerIndex == 0 || pipCornerIndex == 2) padding else (outW - pipWidth - padding)
+        val top = if (pipCornerIndex == 0 || pipCornerIndex == 1) padding else (outH - pipHeight - padding)
 
-        val roundedFront = getRoundedCornerBitmap(front, 24f, pipWidth, pipHeight)
-        canvas.drawBitmap(roundedFront, left, top, null)
+        val roundedPip = getRoundedCornerBitmap(pip, cornerRadius, pipWidth, pipHeight)
+        canvas.drawBitmap(roundedPip, left, top, videoBitmapPaint)
 
         return result
     }
 
-    private fun getRoundedCornerBitmap(bitmap: Bitmap, cornerRadius: Float, targetWidth: Int, targetHeight: Int): Bitmap {
-        val scaled = Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
+    private fun getRoundedCornerBitmap(
+        bitmap: Bitmap,
+        cornerRadius: Float,
+        targetWidth: Int,
+        targetHeight: Int
+    ): Bitmap {
         val output = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
 
-        val paint = Paint().apply {
-            isAntiAlias = true
-            color = -0x1
-        }
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        paint.color = -0x1
         val rect = Rect(0, 0, targetWidth, targetHeight)
         val rectF = RectF(rect)
 
         canvas.drawRoundRect(rectF, cornerRadius, cornerRadius, paint)
         paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-        canvas.drawBitmap(scaled, rect, rect, paint)
+
+        // Center-crop the source bitmap into (targetWidth, targetHeight) so it never stretches
+        val scale = maxOf(
+            targetWidth.toFloat() / bitmap.width.toFloat(),
+            targetHeight.toFloat() / bitmap.height.toFloat()
+        )
+        val scaledW = bitmap.width * scale
+        val scaledH = bitmap.height * scale
+        val dx = (targetWidth - scaledW) / 2f
+        val dy = (targetHeight - scaledH) / 2f
+        val dstRect = RectF(dx, dy, dx + scaledW, dy + scaledH)
+
+        canvas.drawBitmap(bitmap, null, dstRect, paint)
 
         return output
+    }
+
+    private fun decodeBitmapWithExif(path: String): Bitmap? {
+        val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, boundsOptions)
+        var sampleSize = 1
+        val maxDim = maxOf(boundsOptions.outWidth, boundsOptions.outHeight)
+        while (maxDim / sampleSize > 2560) {
+            sampleSize *= 2
+        }
+        val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+        val raw = BitmapFactory.decodeFile(path, decodeOptions) ?: return null
+        return try {
+            val exif = ExifInterface(path)
+            val orientation = exif.getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL
+            )
+            val matrix = Matrix()
+            when (orientation) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+                ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+                ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+                ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.preScale(-1f, 1f)
+                ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.preScale(1f, -1f)
+                else -> return raw
+            }
+            Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, matrix, true)
+        } catch (_: Exception) {
+            raw
+        }
     }
 
     private fun handleSinglePhotoSaved(primaryFile: File, callback: (Result<List<String>>) -> Unit) {
@@ -689,17 +952,19 @@ class DualCameraManager(private val context: Context, private val lifecycleOwner
 
         if (isWideAngleModeEnabled) {
             try {
-                val original = BitmapFactory.decodeFile(primaryFile.absolutePath)
-                val width = original.width
-                val height = (width * (9.0 / 16.0)).roundToInt()
-                val yOffset = (original.height - height) / 2
+                val original = decodeBitmapWithExif(primaryFile.absolutePath)
+                if (original != null) {
+                    val width = original.width
+                    val height = (width * (9.0 / 16.0)).roundToInt().coerceAtMost(original.height)
+                    val yOffset = ((original.height - height) / 2).coerceAtLeast(0)
 
-                val cropped = Bitmap.createBitmap(original, 0, yOffset, width, height)
-                val horizFile = File(context.cacheDir, "photo_horiz_" + java.util.UUID.randomUUID().toString() + ".jpg")
-                FileOutputStream(horizFile).use { out ->
-                    cropped.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                    val cropped = Bitmap.createBitmap(original, 0, yOffset, width, height)
+                    val horizFile = File(context.cacheDir, "photo_horiz_" + UUID.randomUUID().toString() + ".jpg")
+                    FileOutputStream(horizFile).use { out ->
+                        cropped.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                    }
+                    results.add(horizFile.absolutePath)
                 }
-                results.add(horizFile.absolutePath)
             } catch (e: Exception) {
                 e.printStackTrace()
             }

@@ -32,4 +32,5 @@ abstract class CameraRepository {
   Future<bool> isMultiCamSupported();
   Future<void> setDualCamModeEnabled(bool enabled);
   Future<void> setWideAngleModeEnabled(bool enabled);
+  Future<void> setPipCorner(int corner);
 }
